@@ -1,7 +1,6 @@
-import CompaniesList from "@/pages/companies/CompaniesList.tsx";
+export const APPLICATION_STATUSES = ['Applied', 'OA', 'Interview', 'Offer', 'Rejected', 'Withdrawn'] as const;
 
-export const DEPARTMENTS = ['SDE', 'Product Manager', 'AI/ML', 'Cloud', 'Data Engineer'];
-export const DEPARTMENT_OPTIONS = DEPARTMENTS.map((department) => ({
-    value: department,
-    label: department,
+export const APPLICATION_STATUS_OPTIONS = APPLICATION_STATUSES.map((status) => ({
+    value: status,
+    label: status,
 }));

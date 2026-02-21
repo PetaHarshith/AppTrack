@@ -1,8 +1,12 @@
-export type Company = {
+export type Application = {
     id: number;
-    name: string;
-    code: string;
-    department: string;
-    description: string;
+    userId: number;
+    company: string;
+    position: string;
+    status: 'Applied' | 'OA' | 'Interview' | 'Offer' | 'Rejected' | 'Withdrawn';
+    dateApplied: string | null;
+    jobUrl: string | null;
+    notes: string | null;
     createdAt: string;
+    updatedAt: string;
 }

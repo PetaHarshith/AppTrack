@@ -5,7 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="53db24c8-84fa-44e0-b983-46e44504b6d3" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/Apptrack-backend/drizzle.config.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Apptrack-backend/src/db/index.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Apptrack-backend/src/db/schema/app.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Apptrack-backend/src/db/schema/index.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Apptrack-backend/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/Apptrack-backend/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Apptrack-backend/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/Apptrack-backend/package.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -15,9 +21,9 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 2
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 2
+}</component>
   <component name="ProjectId" id="39p9jTyQela8AZFP2Kz30hWEBDq" />
   <component name="ProjectLevelVcsManager">
     <ConfirmationsSetting value="2" id="Add" />
@@ -41,14 +47,14 @@
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
     "settings.editor.selected.configurable": "preferences.keymap",
-    "ts.external.directory.path": "/Users/harshithpeta/developer/AppTrack/Apptrack-frontend/node_modules/typescript/lib",
+    "ts.external.directory.path": "/Users/harshithpeta/developer/AppTrack/Apptrack-backend/node_modules/typescript/lib",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-WS-253.30387.83" />
+        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-WS-253.31033.133" />
       </set>
     </attachedChunks>
   </component>
@@ -60,6 +66,8 @@
       <option name="presentableId" value="Default" />
       <updated>1771382280054</updated>
       <workItem from="1771382281150" duration="17826000" />
+      <workItem from="1771559765830" duration="760000" />
+      <workItem from="1771560661122" duration="13067000" />
     </task>
     <servers />
   </component>

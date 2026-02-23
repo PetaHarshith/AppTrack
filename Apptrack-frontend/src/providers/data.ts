@@ -1,30 +1,34 @@
-import {createDataProvider, CreateDataProviderOptions} from "@refinedev/rest";
-import {BACKEND_URL} from "@/constants";
-import {ListResponse} from "@/types";
+import { createDataProvider, CreateDataProviderOptions } from "@refinedev/rest";
+import { BACKEND_URL } from "@/constants";
+import { ListResponse } from "@/types";
 
 if (!BACKEND_URL) {
     throw new Error('Missing backend URL');
 }
 const options: CreateDataProviderOptions = {
     getList: {
-        getEndpoint: ({resource}) => resource,
+        getEndpoint: ({ resource }) => resource,
 
-        buildQueryParams: async ({resource, pagination, filters}) => {
+        buildQueryParams: async ({ resource, pagination, filters }) => {
             const page = pagination?.currentPage ?? 1;
             const pageSize = pagination?.pageSize ?? 10;
 
-            const params: Record<string, string | number> = {page, limit: pageSize};
+            const params: Record<string, string | number> = { page, limit: pageSize };
 
             filters?.forEach((filter) => {
                 const field = 'field' in filter ? filter.field : '';
-                const value = String(filter.value);
+                const value = filter.value;
+
+                if (!value || value === '' || value === 'undefined' || value === 'null') {
+                    return;
+                }
 
                 if (resource === 'applications') {
                     if (field === 'company') {
-                        params.search = value;
+                        params.search = String(value);
                     }
                     if (field === 'status') {
-                        params.status = value;
+                        params.status = String(value);
                     }
                 }
             });
@@ -44,5 +48,5 @@ const options: CreateDataProviderOptions = {
     }
 }
 
-const {dataProvider} = createDataProvider(BACKEND_URL, options);
-export {dataProvider};
+const { dataProvider } = createDataProvider(BACKEND_URL, options);
+export { dataProvider };

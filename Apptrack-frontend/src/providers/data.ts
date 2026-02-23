@@ -1,5 +1,52 @@
-import { createSimpleRestDataProvider } from "@refinedev/rest/simple-rest";
-import { API_URL } from "./constants";
-export const { dataProvider, kyInstance } = createSimpleRestDataProvider({
-  apiURL: API_URL,
-});
+import { createDataProvider, CreateDataProviderOptions } from "@refinedev/rest";
+import { BACKEND_URL } from "@/constants";
+import { ListResponse } from "@/types";
+
+if (!BACKEND_URL) {
+    throw new Error('Missing backend URL');
+}
+const options: CreateDataProviderOptions = {
+    getList: {
+        getEndpoint: ({ resource }) => resource,
+
+        buildQueryParams: async ({ resource, pagination, filters }) => {
+            const page = pagination?.currentPage ?? 1;
+            const pageSize = pagination?.pageSize ?? 10;
+
+            const params: Record<string, string | number> = { page, limit: pageSize };
+
+            filters?.forEach((filter) => {
+                const field = 'field' in filter ? filter.field : '';
+                const value = filter.value;
+
+                if (!value || value === '' || value === 'undefined' || value === 'null') {
+                    return;
+                }
+
+                if (resource === 'applications') {
+                    if (field === 'company') {
+                        params.search = String(value);
+                    }
+                    if (field === 'status') {
+                        params.status = String(value);
+                    }
+                }
+            });
+
+            return params;
+        },
+
+        mapResponse: async (response) => {
+            const payload: ListResponse = await response.clone().json();
+            return payload.data ?? [];
+        },
+
+        getTotalCount: async (response) => {
+            const payload: ListResponse = await response.clone().json();
+            return payload.pagination?.total ?? payload.data?.length ?? 0;
+        }
+    }
+}
+
+const { dataProvider } = createDataProvider(BACKEND_URL, options);
+export { dataProvider };

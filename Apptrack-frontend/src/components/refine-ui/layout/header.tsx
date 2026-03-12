@@ -1,19 +1,18 @@
-import { UserAvatar } from "@/components/refine-ui/layout/user-avatar";
 import { ThemeToggle } from "@/components/refine-ui/theme/theme-toggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import {
-  useActiveAuthProvider,
-  useLogout,
-  useRefineOptions,
-} from "@refinedev/core";
-import { LogOutIcon } from "lucide-react";
+import { useRefineOptions } from "@refinedev/core";
+import { LogOutIcon, User } from "lucide-react";
+import { useSession, signOut } from "@/lib/auth-client";
+import { useNavigate } from "react-router";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 export const Header = () => {
   const { isMobile } = useSidebar();
@@ -112,37 +111,45 @@ function MobileHeader() {
         </h2>
       </div>
 
-      <ThemeToggle className={cn("h-8", "w-8")} />
+      <div className="flex items-center gap-2">
+        <ThemeToggle className={cn("h-8", "w-8")} />
+        <UserDropdown />
+      </div>
     </header>
   );
 }
 
 const UserDropdown = () => {
-  const { mutate: logout, isPending: isLoggingOut } = useLogout();
+  const { data: session } = useSession();
+  const navigate = useNavigate();
 
-  const authProvider = useActiveAuthProvider();
-
-  if (!authProvider?.getIdentity) {
+  if (!session) {
     return null;
   }
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login");
+  };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger>
-        <UserAvatar />
+        <Avatar className="h-8 w-8 cursor-pointer">
+          <AvatarFallback className="bg-primary text-primary-foreground">
+            {session.user.name?.charAt(0).toUpperCase() || <User className="h-4 w-4" />}
+          </AvatarFallback>
+        </Avatar>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem
-          onClick={() => {
-            logout();
-          }}
-        >
-          <LogOutIcon
-            className={cn("text-destructive", "hover:text-destructive")}
-          />
-          <span className={cn("text-destructive", "hover:text-destructive")}>
-            {isLoggingOut ? "Logging out..." : "Logout"}
-          </span>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuItem disabled className="flex flex-col items-start">
+          <span className="font-medium">{session.user.name}</span>
+          <span className="text-xs text-muted-foreground">{session.user.email}</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleSignOut}>
+          <LogOutIcon className={cn("text-destructive")} />
+          <span className={cn("text-destructive")}>Sign Out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -5,13 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="53db24c8-84fa-44e0-b983-46e44504b6d3" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/Apptrack-backend/drizzle.config.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Apptrack-backend/src/db/index.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Apptrack-backend/src/db/schema/app.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Apptrack-backend/src/db/schema/index.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Apptrack-backend/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/Apptrack-backend/package-lock.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Apptrack-backend/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/Apptrack-backend/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Apptrack-backend/src/routes/applications.ts" beforeDir="false" afterPath="$PROJECT_DIR$/Apptrack-backend/src/routes/applications.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -20,6 +16,10 @@
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/Apptrack-backend/node_modules/@types/node/globals.d.ts" root0="SKIP_INSPECTION" />
+    <setting file="file://$PROJECT_DIR$/Apptrack-backend/node_modules/@types/node/process.d.ts" root0="SKIP_INSPECTION" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 2
@@ -39,14 +39,17 @@
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
     "git-widget-placeholder": "main",
     "javascript.preferred.runtime.type.id": "node",
+    "junie.onboarding.icon.badge.shown": "true",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
     "settings.editor.selected.configurable": "preferences.keymap",
+    "to.speed.mode.migration.done": "true",
     "ts.external.directory.path": "/Users/harshithpeta/developer/AppTrack/Apptrack-backend/node_modules/typescript/lib",
     "vue.rearranger.settings.migration": "true"
   }
@@ -68,6 +71,7 @@
       <workItem from="1771382281150" duration="17826000" />
       <workItem from="1771559765830" duration="760000" />
       <workItem from="1771560661122" duration="13067000" />
+      <workItem from="1771712386444" duration="18573000" />
     </task>
     <servers />
   </component>

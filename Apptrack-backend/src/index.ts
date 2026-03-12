@@ -1,6 +1,8 @@
 import express from 'express';
+import { toNodeHandler } from 'better-auth/node';
 import applicationsRouter from './routes/applications';
 import cors from 'cors';
+import { auth } from './lib/auth';
 
 const app = express();
 const PORT = 8000;
@@ -14,6 +16,9 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
 }));
+
+// Better-auth handler - must be before express.json() for auth routes
+app.all('/api/auth/*splat', toNodeHandler(auth));
 
 app.use(express.json());
 

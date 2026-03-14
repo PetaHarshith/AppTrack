@@ -131,6 +131,12 @@ The stats endpoint aggregates:
 ## Database
 - PostgreSQL
 
+# Developer Tooling
+
+- GitHub for version control
+- CodeRabbit for automated pull request reviews and AI-assisted code feedback
+- TypeScript for type safety
+- Zod for schema validation
 ---
 
 # Example Application Status Flow

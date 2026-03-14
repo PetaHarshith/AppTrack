@@ -1,84 +1,212 @@
 # AppTrack
 
-AppTrack is a full-stack web application for tracking job and internship applications in one place.
+AppTrack is a full-stack job application tracking platform built to replace spreadsheet-based workflows with a centralized dashboard for managing job applications.
 
-I built this project because I was tired of using spreadsheets, notes, and emails to keep track of where I applied and what stage I was in. AppTrack is meant to solve a real problem I personally have during recruiting, while also being a realistic full-stack project built outside of class.
+The system allows users to track applications across different stages of the hiring process, monitor response rates, and visualize application trends over time.
 
----
-
-## Features
-
-- Add and manage job or internship applications
-- Track application status (Applied, OA, Interview, Offer, Rejected)
-- Store notes and links for each application
-- View all applications in a single dashboard
-- Filter and search applications by company or status
+The application is built using a modern full-stack architecture with a React frontend, a Node.js/Express backend, and a PostgreSQL database.
 
 ---
 
-## Tech Stack
+# Features
 
-### Frontend
+## Application Management
+- Create, update, and delete job applications
+- Track application status (Applied, OA, Interview, Offer, Rejected, Withdrawn)
+- Add optional details such as job URLs and notes
+- Inline editing for quick updates
+
+## Dashboard Analytics
+- Total applications overview
+- Pending applications tracking
+- Response rate calculation
+- Success rate tracking
+- Application trends over time
+
+## Data Visualization
+- Bar chart for application status breakdown
+- Pie chart for status distribution
+- Area chart for application activity trends
+- Recent applications list
+
+## Application Table
+- Search applications by company name
+- Filter by application status
+- Sort by application date
+- Server-side pagination
+- Status dropdown for quick updates
+
+## Authentication
+- User signup and login
+- Session-based authentication
+- Protected routes for authenticated users
+
+## Validation
+- Input validation using Zod
+- Status and date validation
+- Field length validation
+
+---
+
+# Architecture
+
+AppTrack follows a typical three-layer architecture:
+
+```
+Frontend (React + TypeScript)
+        ↓
+REST API (Node.js + Express)
+        ↓
+Database (PostgreSQL)
+```
+
+## Frontend
+- React 18
+- TypeScript
+- Vite
+- Refine for data management
+- React Table for tabular data
+- Recharts for analytics dashboards
+- Tailwind CSS for styling
+- GSAP for UI animations
+
+## Backend
+- Node.js
+- Express
+- TypeScript
+- Drizzle ORM
+- Zod validation
+
+## Database
+- PostgreSQL
+- Relational schema with application status enums
+- Migration-based schema management
+
+---
+
+# API Overview
+
+## Applications
+
+```
+GET    /applications
+POST   /applications
+GET    /applications/:id
+PUT    /applications/:id
+DELETE /applications/:id
+GET    /applications/stats
+```
+
+The stats endpoint aggregates:
+
+- total applications
+- status breakdown
+- monthly application trends
+- response rate
+- success rate
+
+---
+
+# Tech Stack
+
+## Frontend
 - React
 - TypeScript
 - Vite
-- shadcn/ui
-- ESLint
+- Refine
+- React Table
+- Recharts
+- Tailwind CSS
+- Lucide Icons
+- Sonner
+- GSAP
 
-### Backend
+## Backend
 - Node.js
 - Express
-- REST API
+- TypeScript
+- Drizzle ORM
+- Zod
 
-### Database
+## Database
 - PostgreSQL
 
-### Tooling
-- Docker
-- Git / GitHub
+---
 
+# Example Application Status Flow
+
+```
+Applied → OA → Interview → Offer
+                         ↘
+                        Rejected
+```
+
+This allows the system to track application progression and compute metrics like response rate and success rate.
 
 ---
 
-## Running Locally
+# Planned Improvements
 
-### Requirements
-- Node.js (v18+ recommended)
-- npm
-- PostgreSQL
+Future enhancements include:
 
-### Frontend
-
-cd Apptrack-frontend  
-npm install  
-npm run dev  
-
-### Backend
-
-cd Apptrack-backend  
-npm install  
-npm run dev  
+- User-specific data isolation
+- Export functionality (CSV or PDF)
+- Advanced filtering (date ranges and multiple status filters)
+- Docker-based deployment
+- Automated testing
+- API documentation
 
 ---
 
-## Current Status
+# Running the Project
 
-This project is still in active development.
+## Backend
 
-Planned improvements:
-- User authentication
-- Better analytics (application conversion rates, response tracking)
-- Reminders for follow-ups
-- Cloud deployment
+Install dependencies
+
+```
+npm install
+```
+
+Run database migrations
+
+```
+npm run migrate
+```
+
+Start server
+
+```
+npm run dev
+```
 
 ---
 
-## Why I Built This
+## Frontend
 
-I wanted to build a project that:
-- Solves a real problem I actually have
-- Feels like a real product, not a class assignment
-- Demonstrates full-stack development and clean project structure
+Install dependencies
 
-This is something I plan to keep improving and using during my own job search.
+```
+npm install
+```
 
+Start development server
+
+```
+npm run dev
+```
+
+---
+
+# Project Motivation
+
+Job searching often involves tracking dozens of applications across multiple companies and stages. Many people rely on spreadsheets or scattered notes, which makes it difficult to understand progress and trends.
+
+AppTrack was built to provide a centralized system that helps users manage applications more efficiently and gain insight into their job search through simple analytics and visualization.
+
+---
+
+# Author
+
+Harshith Peta  
+Computer Science, University of Wisconsin–Madison

@@ -6,7 +6,6 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid,
     PieChart, Pie, Cell,
     AreaChart, Area,
-    ResponsiveContainer
 } from 'recharts'
 import {
     Briefcase, TrendingUp, CheckCircle2, Clock,
@@ -352,6 +351,7 @@ const Dashboard = () => {
                     </div>
                 </CardContent>
             </Card>
+
         </div>
     )
 }

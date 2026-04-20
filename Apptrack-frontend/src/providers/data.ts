@@ -1,60 +1,98 @@
-import { createDataProvider, CreateDataProviderOptions } from "@refinedev/rest";
+import { BaseRecord, DataProvider, GetListParams } from "@refinedev/core";
 import { BACKEND_URL } from "@/constants";
 import { ListResponse } from "@/types";
 
 if (!BACKEND_URL) {
     throw new Error('Missing backend URL');
 }
-const options: CreateDataProviderOptions = {
-    getList: {
-        getEndpoint: ({ resource }) => resource,
 
-        buildQueryParams: async ({ resource, pagination, filters, sorters }) => {
-            const page = pagination?.currentPage ?? 1;
-            const pageSize = pagination?.pageSize ?? 10;
+// Custom data provider that includes credentials for cookie-based auth
+export const dataProvider: DataProvider = {
+    getList: async <TData extends BaseRecord = BaseRecord>(listParams: GetListParams) => {
+        const { resource, pagination, filters, sorters } = listParams;
+        const page = (pagination as any)?.current ?? (pagination as any)?.currentPage ?? 1;
+        const pageSize = pagination?.pageSize ?? 10;
 
-            const params: Record<string, string | number> = { page, limit: pageSize };
+        const params = new URLSearchParams();
+        params.set('page', String(page));
+        params.set('limit', String(pageSize));
 
-            // Handle filters
-            filters?.forEach((filter) => {
-                const field = 'field' in filter ? filter.field : '';
-                const value = filter.value;
+        // Handle filters
+        filters?.forEach((filter) => {
+            const field = 'field' in filter ? filter.field : '';
+            const value = filter.value;
 
-                if (!value || value === '' || value === 'undefined' || value === 'null') {
-                    return;
-                }
-
-                if (resource === 'applications') {
-                    if (field === 'company') {
-                        params.search = String(value);
-                    }
-                    if (field === 'status') {
-                        params.status = String(value);
-                    }
-                }
-            });
-
-            // Handle sorters - send sort field and order to backend
-            if (sorters && sorters.length > 0) {
-                const primarySorter = sorters[0];
-                params.sort = primarySorter.field;
-                params.order = primarySorter.order;
+            if (!value || value === '' || value === 'undefined' || value === 'null') {
+                return;
             }
 
-            return params;
-        },
+            if (resource === 'applications') {
+                if (field === 'company') {
+                    params.set('search', String(value));
+                }
+                if (field === 'status') {
+                    params.set('status', String(value));
+                }
+            }
+        });
 
-        mapResponse: async (response) => {
-            const payload: ListResponse = await response.clone().json();
-            return payload.data ?? [];
-        },
-
-        getTotalCount: async (response) => {
-            const payload: ListResponse = await response.clone().json();
-            return payload.pagination?.total ?? payload.data?.length ?? 0;
+        // Handle sorters
+        if (sorters && sorters.length > 0) {
+            const primarySorter = sorters[0];
+            params.set('sort', primarySorter.field);
+            params.set('order', primarySorter.order);
         }
-    }
-}
 
-const { dataProvider } = createDataProvider(BACKEND_URL, options);
-export { dataProvider };
+        const response = await fetch(`${BACKEND_URL}/${resource}?${params.toString()}`, {
+            credentials: 'include',
+        });
+
+        const payload: ListResponse<TData> = await response.json();
+
+        return {
+            data: payload.data ?? [],
+            total: payload.pagination?.total ?? payload.data?.length ?? 0,
+        };
+    },
+
+    getOne: async ({ resource, id }) => {
+        const response = await fetch(`${BACKEND_URL}/${resource}/${id}`, {
+            credentials: 'include',
+        });
+        const payload = await response.json();
+        return { data: payload.data };
+    },
+
+    create: async ({ resource, variables }) => {
+        const response = await fetch(`${BACKEND_URL}/${resource}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(variables),
+        });
+        const payload = await response.json();
+        return { data: payload.data };
+    },
+
+    update: async ({ resource, id, variables }) => {
+        const response = await fetch(`${BACKEND_URL}/${resource}/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(variables),
+        });
+        const payload = await response.json();
+        return { data: payload.data };
+    },
+
+    deleteOne: async ({ resource, id }) => {
+        const response = await fetch(`${BACKEND_URL}/${resource}/${id}`, {
+            method: 'DELETE',
+            credentials: 'include',
+        });
+        const payload = await response.json();
+        return { data: payload.data };
+    },
+
+    getApiUrl: () => BACKEND_URL,
+};

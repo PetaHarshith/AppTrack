@@ -17,6 +17,7 @@ import { ClipboardList, Home, User } from "lucide-react";
 import { Layout } from "@/components/refine-ui/layout/layout.tsx";
 import ApplicationsList from "@/pages/applications/ApplicationsList.tsx";
 import ApplicationsCreate from "@/pages/applications/ApplicationsCreate.tsx";
+import ApplicationsEdit from "@/pages/applications/ApplicationsEdit.tsx";
 import Login from "@/pages/auth/Login.tsx";
 import Signup from "@/pages/auth/Signup.tsx";
 import Profile from "@/pages/Profile.tsx";
@@ -86,6 +87,7 @@ function App() {
                                     name: 'applications',
                                     list: '/applications',
                                     create: '/applications/create',
+                                    edit: '/applications/edit/:id',
                                     meta: { label: 'Applications', icon: <ClipboardList /> }
                                 },
                                 {
@@ -122,6 +124,7 @@ function App() {
                                     <Route path="/applications">
                                         <Route index element={<ApplicationsList />} />
                                         <Route path="create" element={<ApplicationsCreate />} />
+                                        <Route path="edit/:id" element={<ApplicationsEdit />} />
                                     </Route>
 
                                     <Route path="/profile" element={<Profile />} />

@@ -14,8 +14,8 @@ import { Loader2, Briefcase, Building2, Calendar, Link2, FileText, ArrowLeft, Se
 import { toast } from 'sonner';
 
 // Zod schema matching backend validation
+// NOTE: userId is NOT included - backend uses authenticated user's ID
 const createApplicationSchema = z.object({
-    userId: z.number().int().positive(),
     company: z.string().trim().min(1, 'Company name is required').max(120, 'Company name too long'),
     position: z.string().trim().min(1, 'Position is required').max(150, 'Position too long'),
     status: z.enum(['Applied', 'OA', 'Interview', 'Offer', 'Rejected', 'Withdrawn']).optional(),
@@ -47,7 +47,6 @@ const ApplicationsCreate = () => {
     } = useForm<CreateApplicationFormData>({
         resolver: zodResolver(createApplicationSchema),
         defaultValues: {
-            userId: 1,
             company: '',
             position: '',
             status: 'Applied',
@@ -98,6 +97,7 @@ const ApplicationsCreate = () => {
             const response = await fetch(`${BACKEND_URL}/applications`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify(data),
             });
 
@@ -132,8 +132,29 @@ const ApplicationsCreate = () => {
         }
     };
 
-    const onError = () => {
-        toast.error('Please fill in all required fields');
+    const onError = (formErrors: typeof errors) => {
+        // Build a user-friendly list of missing/invalid fields
+        const errorMessages: string[] = [];
+
+        if (formErrors.company) {
+            errorMessages.push('Company name is required');
+        }
+        if (formErrors.position) {
+            errorMessages.push('Position is required');
+        }
+        if (formErrors.dateApplied) {
+            errorMessages.push('Invalid date format');
+        }
+
+        // Show specific error or generic message
+        if (errorMessages.length === 1) {
+            toast.error(errorMessages[0]);
+        } else if (errorMessages.length > 1) {
+            toast.error(`Please fix: ${errorMessages.join(', ')}`);
+        } else {
+            toast.error('Please fill in all required fields');
+        }
+
         gsap.fromTo(cardRef.current,
             { x: -5 },
             { x: 5, duration: 0.08, repeat: 3, yoyo: true, ease: 'power2.inOut' }

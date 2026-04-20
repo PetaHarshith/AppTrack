@@ -1,7 +1,8 @@
 import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router';
 import { ListView } from "@/components/refine-ui/views/list-view.tsx";
 import { Breadcrumb } from "@/components/refine-ui/layout/breadcrumb.tsx";
-import { Search, Send, FileText, Briefcase, Award, XCircle, Clock, ChevronDown, X, Pencil, Check, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, Send, FileText, Briefcase, Award, XCircle, Clock, ChevronDown, X, Pencil, Check, ArrowUp, ArrowDown, Trash2, Edit } from "lucide-react";
 import { Input } from "@/components/ui/input.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
 import { APPLICATION_STATUS_OPTIONS, APPLICATION_STATUSES, BACKEND_URL } from "@/constants";
@@ -183,6 +184,7 @@ const EditableNotesCell = ({
 };
 
 const ApplicationsList = () => {
+    const navigate = useNavigate();
 
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedStatus, setSelectedStatus] = useState("all");
@@ -192,6 +194,32 @@ const ApplicationsList = () => {
     const [statusOverrides, setStatusOverrides] = useState<Record<number, ApplicationStatus>>({});
     // Local state for optimistic notes updates
     const [notesOverrides, setNotesOverrides] = useState<Record<number, string>>({});
+
+    // Handle delete
+    const handleDelete = useCallback(async (
+        applicationId: number,
+        e: React.MouseEvent,
+        onDeleted?: () => Promise<unknown>
+    ) => {
+        e.stopPropagation(); // Prevent row click
+        if (!confirm('Are you sure you want to delete this application?')) return;
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/applications/${applicationId}`, {
+                method: 'DELETE',
+                credentials: 'include',
+            });
+
+            if (!response.ok) throw new Error('Failed to delete');
+
+            toast.success('Application deleted');
+            if (onDeleted) {
+                await onDeleted();
+            }
+        } catch (error) {
+            toast.error('Failed to delete application');
+        }
+    }, []);
 
     // Filter by status
     const statusFilters = selectedStatus === "all" ? [] : [
@@ -352,9 +380,39 @@ const ApplicationsList = () => {
                         />
                     );
                 },
+            },
+            {
+                id: 'actions',
+                size: 120,
+                header: () => <p className="column-title">Actions</p>,
+                cell: ({ row }) => (
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/applications/edit/${row.original.id}`);
+                            }}
+                            aria-label="Edit application"
+                        >
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={(e) => handleDelete(row.original.id, e, applicationTable.refineCore.tableQuery.refetch)}
+                            aria-label="Delete application"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </div>
+                ),
             }
             // eslint-disable-next-line react-hooks/exhaustive-deps
-        ], [statusOverrides, handleStatusChange, notesOverrides, handleNotesChange, dateSort]),
+        ], [statusOverrides, handleStatusChange, notesOverrides, handleNotesChange, dateSort, navigate, handleDelete]),
 
         refineCoreProps: {
             resource: 'applications',
@@ -410,7 +468,10 @@ const ApplicationsList = () => {
                 </div>
             </div>
 
-            <DataTable table={applicationTable} />
+            <DataTable
+                table={applicationTable}
+                onRowClick={(row) => navigate(`/applications/edit/${row.id}`)}
+            />
         </ListView>
     )
 }

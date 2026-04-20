@@ -37,24 +37,33 @@ const createApplicationSchema = z.object({
 const updateApplicationSchema = createApplicationSchema.partial().omit({ userId: true });
 
 // Get dashboard statistics
-router.get("/stats", async (_req, res) => {
+router.get("/stats", async (req, res) => {
     try {
-        // Get status counts
+        // Get userId from middleware (integer from custom users table)
+        const userId = (req as any).userId as number | undefined;
+
+        if (!userId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        // Get status counts for this user only
         const statusCounts = await db
             .select({
                 status: applications.status,
                 count: sql<number>`count(*)::int`
             })
             .from(applications)
+            .where(eq(applications.userId, userId))
             .groupBy(applications.status);
 
-        // Get total count
+        // Get total count for this user only
         const totalResult = await db
             .select({ count: sql<number>`count(*)::int` })
-            .from(applications);
+            .from(applications)
+            .where(eq(applications.userId, userId));
         const total = totalResult[0]?.count ?? 0;
 
-        // Get applications by month (last 6 months)
+        // Get applications by month (last 6 months) for this user only
         const sixMonthsAgo = new Date();
         sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
@@ -64,11 +73,14 @@ router.get("/stats", async (_req, res) => {
                 count: sql<number>`count(*)::int`
             })
             .from(applications)
-            .where(sql`created_at >= ${sixMonthsAgo.toISOString()}`)
+            .where(and(
+                eq(applications.userId, userId),
+                sql`created_at >= ${sixMonthsAgo.toISOString()}`
+            ))
             .groupBy(sql`to_char(created_at, 'YYYY-MM')`)
             .orderBy(sql`to_char(created_at, 'YYYY-MM')`);
 
-        // Get recent applications (last 5)
+        // Get recent applications (last 5) for this user only
         const recentApplications = await db
             .select({
                 id: applications.id,
@@ -79,6 +91,7 @@ router.get("/stats", async (_req, res) => {
                 createdAt: applications.createdAt
             })
             .from(applications)
+            .where(eq(applications.userId, userId))
             .orderBy(desc(applications.createdAt))
             .limit(5);
 
@@ -116,6 +129,13 @@ const VALID_SORT_FIELDS = ["dateApplied", "createdAt", "company", "position", "s
 // Get all applications with optional search, filtering, sorting and pagination
 router.get("/", async (req, res) => {
     try {
+        // Get userId from middleware
+        const userId = (req as any).userId as number | undefined;
+
+        if (!userId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
         const { search, status, page = "1", limit = "10", sort = "dateApplied", order = "desc" } = req.query;
 
         // Validate and parse pagination params
@@ -148,7 +168,8 @@ router.get("/", async (req, res) => {
         // Validate sort order
         const sortOrder = (order === "asc" || order === "desc") ? order : "desc";
 
-        const filterConditions = [];
+        // CRITICAL: Always filter by current user's ID first
+        const filterConditions = [eq(applications.userId, userId)];
 
         // If search query exists, filter by company name
         if (search && typeof search === "string") {
@@ -223,6 +244,13 @@ router.get("/", async (req, res) => {
 // Get a single application by ID
 router.get("/:id", async (req, res) => {
     try {
+        // Get userId from middleware
+        const userId = (req as any).userId as number | undefined;
+
+        if (!userId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
         const { id } = req.params;
 
         // Validate ID
@@ -231,10 +259,14 @@ router.get("/:id", async (req, res) => {
             return res.status(400).json({ error: "Invalid application ID" });
         }
 
+        // Get application AND verify it belongs to current user
         const application = await db
             .select()
             .from(applications)
-            .where(eq(applications.id, appId))
+            .where(and(
+                eq(applications.id, appId),
+                eq(applications.userId, userId)
+            ))
             .limit(1);
 
         if (!application || application.length === 0) {
@@ -251,8 +283,18 @@ router.get("/:id", async (req, res) => {
 // Create a new application
 router.post("/", async (req, res) => {
     try {
+        // Get userId from middleware (authenticated user)
+        const userId = (req as any).userId as number | undefined;
+
+        if (!userId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        // Create schema without userId (it comes from auth, not request)
+        const createSchemaWithoutUserId = createApplicationSchema.omit({ userId: true });
+
         // Validate request body with Zod
-        const validationResult = createApplicationSchema.safeParse(req.body);
+        const validationResult = createSchemaWithoutUserId.safeParse(req.body);
 
         if (!validationResult.success) {
             const errors = validationResult.error.issues.map((err) => ({
@@ -270,7 +312,7 @@ router.post("/", async (req, res) => {
         const newApplication = await db
             .insert(applications)
             .values({
-                userId: validatedData.userId,
+                userId: userId, // Use authenticated user's ID
                 company: validatedData.company,
                 position: validatedData.position,
                 status: validatedData.status,
@@ -290,6 +332,13 @@ router.post("/", async (req, res) => {
 // Update an application
 router.put("/:id", async (req, res) => {
     try {
+        // Get userId from middleware
+        const userId = (req as any).userId as number | undefined;
+
+        if (!userId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
         const { id } = req.params;
 
         // Validate ID
@@ -318,10 +367,14 @@ router.put("/:id", async (req, res) => {
             return res.status(400).json({ error: "No fields to update" });
         }
 
+        // Update application AND verify it belongs to current user
         const updatedApplication = await db
             .update(applications)
             .set(validatedData)
-            .where(eq(applications.id, appId))
+            .where(and(
+                eq(applications.id, appId),
+                eq(applications.userId, userId)
+            ))
             .returning();
 
         if (!updatedApplication || updatedApplication.length === 0) {
@@ -338,6 +391,13 @@ router.put("/:id", async (req, res) => {
 // Delete an application
 router.delete("/:id", async (req, res) => {
     try {
+        // Get userId from middleware
+        const userId = (req as any).userId as number | undefined;
+
+        if (!userId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
         const { id } = req.params;
 
         // Validate ID
@@ -346,9 +406,13 @@ router.delete("/:id", async (req, res) => {
             return res.status(400).json({ error: "Invalid application ID" });
         }
 
+        // Delete application AND verify it belongs to current user
         const deletedApplication = await db
             .delete(applications)
-            .where(eq(applications.id, appId))
+            .where(and(
+                eq(applications.id, appId),
+                eq(applications.userId, userId)
+            ))
             .returning();
 
         if (!deletedApplication || deletedApplication.length === 0) {
@@ -363,4 +427,3 @@ router.delete("/:id", async (req, res) => {
 });
 
 export default router;
-

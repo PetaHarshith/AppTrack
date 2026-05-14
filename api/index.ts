@@ -4,8 +4,8 @@
  * matching paths here; everything else (static frontend assets) is served from
  * the Vite build output.
  *
- * The Express app exports itself; we just re-export so Vercel finds a default
- * handler in this file.
+ * The .js extension is required by Node's ESM runtime (the .ts source resolves
+ * correctly thanks to TypeScript's NodeNext-style resolution).
  */
 
-export { default } from "../Apptrack-backend/src/index";
+export { default } from "../Apptrack-backend/src/index.js";

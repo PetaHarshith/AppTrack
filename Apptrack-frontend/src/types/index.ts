@@ -11,6 +11,10 @@ export type User = {
 // Application status enum
 export type ApplicationStatus = 'Applied' | 'OA' | 'Interview' | 'Offer' | 'Rejected' | 'Withdrawn';
 
+export type WorkType = 'Internship' | 'FullTime' | 'Coop' | 'Contract';
+export type Priority = 'Dream' | 'Target' | 'Safety';
+export type ApplicationSource = 'manual' | 'email' | 'url_import';
+
 // Application type
 export type Application = {
     id: number;
@@ -21,6 +25,17 @@ export type Application = {
     dateApplied: string | null;
     jobUrl: string | null;
     notes: string | null;
+    interviewDate: string | null;
+    oaDeadline: string | null;
+    salary: string | null;
+    location: string | null;
+    workType: WorkType | null;
+    requiresSponsorship: boolean | null;
+    priority: Priority | null;
+    lastContactAt: string | null;
+    source: ApplicationSource;
+    needsReview: boolean;
+    externalId: string | null;
     createdAt: string;
     updatedAt: string;
 };

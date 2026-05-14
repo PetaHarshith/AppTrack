@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>AppTrack</title>
+    <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+    <header class="app-header">
+        <div class="brand">
+            <span class="brand-dot"></span>
+            <span class="brand-text">apptrack</span>
+        </div>
+        <span class="brand-version">/ extension</span>
+    </header>
+
+    <div id="state-loading" class="state">
+        <div class="spinner"></div>
+        <p class="state-text">Reading page...</p>
+    </div>
+
+    <div id="state-not-job" class="state hidden">
+        <p class="state-title">Not a job page</p>
+        <p class="state-text">
+            Open a posting on LinkedIn, Greenhouse, Lever, Workday, Ashby — or any page with a JobPosting schema — and click the icon again.
+        </p>
+        <button id="open-app" class="btn-secondary">Open AppTrack →</button>
+    </div>
+
+    <div id="state-not-auth" class="state hidden">
+        <p class="state-title">Sign in to AppTrack first</p>
+        <p class="state-text">
+            The extension uses your active AppTrack session to save jobs.
+        </p>
+        <button id="open-login" class="btn-primary">Open AppTrack</button>
+    </div>
+
+    <form id="state-form" class="state hidden">
+        <div class="meta">
+            <span class="meta-label">// detected on</span>
+            <span id="source-label" class="meta-value">—</span>
+        </div>
+
+        <div class="field">
+            <label class="field-label" for="f-company">Company</label>
+            <input id="f-company" name="company" type="text" required />
+        </div>
+
+        <div class="field">
+            <label class="field-label" for="f-position">Position</label>
+            <input id="f-position" name="position" type="text" />
+            <p class="field-hint">Leave blank if unknown — you can edit later.</p>
+        </div>
+
+        <div class="row">
+            <div class="field">
+                <label class="field-label" for="f-location">Location</label>
+                <input id="f-location" name="location" type="text" />
+            </div>
+            <div class="field">
+                <label class="field-label" for="f-workType">Type</label>
+                <select id="f-workType" name="workType">
+                    <option value="">—</option>
+                    <option value="Internship">Internship</option>
+                    <option value="FullTime">Full-Time</option>
+                    <option value="Coop">Co-op</option>
+                    <option value="Contract">Contract</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="field">
+            <label class="field-label" for="f-salary">Salary</label>
+            <input id="f-salary" name="salary" type="text" placeholder="optional" />
+        </div>
+
+        <input id="f-url" name="jobUrl" type="hidden" />
+
+        <button type="submit" id="submit-btn" class="btn-primary">
+            <span class="btn-icon">+</span>
+            <span>Save to AppTrack</span>
+        </button>
+    </form>
+
+    <div id="state-success" class="state hidden">
+        <div class="success-mark">✓</div>
+        <p class="state-title success-title">Saved to pipeline</p>
+        <p id="success-subtext" class="state-text">—</p>
+        <button id="open-app-success" class="btn-secondary">Open AppTrack →</button>
+    </div>
+
+    <div id="state-error" class="state hidden">
+        <p class="state-title error-title">Couldn't save</p>
+        <p id="error-text" class="state-text">—</p>
+        <button id="retry-btn" class="btn-secondary">Try again</button>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

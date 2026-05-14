@@ -3,7 +3,8 @@ import { useNavigate, Link } from "react-router";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Mail, Lock, Eye, EyeOff, Briefcase, TrendingUp, Target, CheckCircle2 } from "lucide-react";
+import { Loader2, Eye, EyeOff, ArrowUpRight } from "lucide-react";
+import AuthBrandPanel from "./AuthBrandPanel";
 
 export default function Login() {
     const navigate = useNavigate();
@@ -16,7 +17,7 @@ export default function Login() {
     });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+        setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
         setError(null);
     };
 
@@ -27,7 +28,6 @@ export default function Login() {
 
         try {
             const isEmail = formData.usernameOrEmail.includes("@");
-
             if (isEmail) {
                 const { error } = await authClient.signIn.email({
                     email: formData.usernameOrEmail,
@@ -49,7 +49,6 @@ export default function Login() {
                     return;
                 }
             }
-
             navigate("/");
         } catch {
             setError("An unexpected error occurred. Please try again.");
@@ -59,168 +58,116 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen flex">
-            {/* Left side - Form */}
-            <div className="flex-1 flex items-center justify-center p-8 lg:p-12">
-                <div className="w-full max-w-md space-y-8">
-                    {/* Logo */}
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-                            <Briefcase className="w-5 h-5 text-primary-foreground" />
+        <div className="min-h-screen flex bg-background">
+            <AuthBrandPanel />
+
+            {/* Right: form */}
+            <div className="flex-1 flex flex-col p-6 md:p-10">
+                <div className="flex items-center justify-between">
+                    <Link to="/" className="lg:hidden flex items-center gap-2 font-mono font-bold tracking-tight">
+                        <span className="inline-block w-2 h-2 bg-primary" />
+                        apptrack
+                    </Link>
+                    <p className="ml-auto text-sm text-muted-foreground">
+                        New here?{" "}
+                        <Link to="/signup" className="text-foreground font-medium hover:text-primary transition-colors inline-flex items-center gap-0.5">
+                            Create an account
+                            <ArrowUpRight className="w-3.5 h-3.5" />
+                        </Link>
+                    </p>
+                </div>
+
+                <div className="flex-1 flex items-center justify-center">
+                    <div className="w-full max-w-sm">
+                        <div className="mb-10">
+                            <h1 className="text-4xl font-bold tracking-tight">
+                                Welcome back.
+                            </h1>
+                            <p className="text-muted-foreground mt-2">
+                                Pick up where you left off.
+                            </p>
                         </div>
-                        <span className="text-xl font-bold">AppTrack</span>
-                    </div>
 
-                    {/* Header */}
-                    <div className="space-y-2">
-                        <h1 className="text-4xl font-bold tracking-tight">Welcome back!</h1>
-                        <p className="text-muted-foreground text-lg">
-                            Sign in to continue tracking your applications
-                        </p>
-                    </div>
+                        {error && (
+                            <div className="mb-5 bg-destructive/10 text-destructive text-sm px-3 py-2.5 rounded-md border border-destructive/20">
+                                {error}
+                            </div>
+                        )}
 
-                    {/* Error */}
-                    {error && (
-                        <div className="bg-destructive/10 text-destructive text-sm p-4 rounded-xl border border-destructive/20">
-                            {error}
-                        </div>
-                    )}
-
-                    {/* Form */}
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-muted-foreground">
-                                Email or Username
-                            </label>
-                            <div className="relative">
-                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <form
+                            onSubmit={handleSubmit}
+                            className="space-y-4"
+                            autoComplete="on"
+                        >
+                            <div className="space-y-1.5">
+                                <label htmlFor="login-id" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                    Email or username
+                                </label>
                                 <Input
+                                    id="login-id"
                                     name="usernameOrEmail"
                                     type="text"
-                                    placeholder="Enter your email or username"
+                                    autoComplete="username"
+                                    placeholder="you@example.com"
                                     value={formData.usernameOrEmail}
                                     onChange={handleChange}
                                     required
                                     disabled={isLoading}
-                                    className="h-14 pl-12 pr-4 text-base rounded-xl border-border/50 bg-muted/30 focus:bg-background transition-colors"
+                                    className="h-11"
                                 />
                             </div>
-                        </div>
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-muted-foreground">
-                                Password
-                            </label>
-                            <div className="relative">
-                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                                <Input
-                                    name="password"
-                                    type={showPassword ? "text" : "password"}
-                                    placeholder="Enter your password"
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                    required
-                                    disabled={isLoading}
-                                    className="h-14 pl-12 pr-12 text-base rounded-xl border-border/50 bg-muted/30 focus:bg-background transition-colors"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                                >
-                                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                </button>
+                            <div className="space-y-1.5">
+                                <label htmlFor="login-password" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                    Password
+                                </label>
+                                <div className="relative">
+                                    <Input
+                                        id="login-password"
+                                        name="password"
+                                        type={showPassword ? "text" : "password"}
+                                        autoComplete="current-password"
+                                        placeholder="••••••••"
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        required
+                                        disabled={isLoading}
+                                        className="h-11 pr-11"
+                                    />
+                                    <button
+                                        type="button"
+                                        tabIndex={-1}
+                                        onClick={() => setShowPassword((s) => !s)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                        aria-label={showPassword ? "Hide password" : "Show password"}
+                                    >
+                                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    </button>
+                                </div>
                             </div>
-                        </div>
 
-                        <Button
-                            type="submit"
-                            className="w-full h-14 text-base font-semibold rounded-xl"
-                            disabled={isLoading}
-                        >
-                            {isLoading ? (
-                                <>
-                                    <Loader2 className="animate-spin" />
-                                    Signing in...
-                                </>
-                            ) : (
-                                "Sign In"
-                            )}
-                        </Button>
-                    </form>
-
-                    {/* Footer */}
-                    <p className="text-center text-muted-foreground">
-                        Don't have an account?{" "}
-                        <Link to="/signup" className="text-primary font-semibold hover:underline">
-                            Sign up
-                        </Link>
-                    </p>
-                </div>
-            </div>
-
-            {/* Right side - Visual Panel */}
-            <div className="hidden lg:flex flex-1 relative overflow-hidden bg-gradient-to-br from-primary/90 via-primary to-primary/80 p-12">
-                {/* Background pattern */}
-                <div className="absolute inset-0 opacity-10">
-                    <div className="absolute top-20 left-20 w-64 h-64 border border-white/20 rounded-full" />
-                    <div className="absolute top-40 left-40 w-96 h-96 border border-white/20 rounded-full" />
-                    <div className="absolute bottom-20 right-20 w-80 h-80 border border-white/20 rounded-full" />
-                </div>
-
-                {/* Content */}
-                <div className="relative z-10 flex flex-col justify-between h-full text-primary-foreground">
-                    {/* Top */}
-                    <div className="space-y-6">
-                        <h2 className="text-5xl font-bold leading-tight">
-                            Track your job<br />applications<br />with ease
-                        </h2>
-                        <p className="text-xl text-primary-foreground/80 max-w-md">
-                            Stay organized and never miss an opportunity. Your career journey, simplified.
-                        </p>
-                    </div>
-
-                    {/* Features */}
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-2xl p-4">
-                            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                                <Target className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <h3 className="font-semibold">Track Applications</h3>
-                                <p className="text-sm text-primary-foreground/70">Monitor every application status</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-2xl p-4">
-                            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                                <TrendingUp className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <h3 className="font-semibold">Analytics & Insights</h3>
-                                <p className="text-sm text-primary-foreground/70">Visualize your job search progress</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-2xl p-4">
-                            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                                <CheckCircle2 className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <h3 className="font-semibold">Stay Organized</h3>
-                                <p className="text-sm text-primary-foreground/70">Never miss a follow-up again</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Bottom quote */}
-                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
-                        <p className="text-lg italic text-primary-foreground/90">
-                            "AppTrack helped me land my dream job by keeping me organized throughout my search."
-                        </p>
-                        <p className="mt-3 text-sm text-primary-foreground/70">— Happy User</p>
+                            <Button
+                                type="submit"
+                                className="w-full h-11 font-medium mt-2"
+                                disabled={isLoading}
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                        Signing in
+                                    </>
+                                ) : (
+                                    "Sign in"
+                                )}
+                            </Button>
+                        </form>
                     </div>
                 </div>
+
+                <p className="text-xs text-muted-foreground/60 text-center">
+                    Made for students chasing their first big shot.
+                </p>
             </div>
         </div>
     );
 }
-

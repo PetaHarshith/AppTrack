@@ -21,7 +21,10 @@ import ApplicationsEdit from "@/pages/applications/ApplicationsEdit.tsx";
 import Login from "@/pages/auth/Login.tsx";
 import Signup from "@/pages/auth/Signup.tsx";
 import Profile from "@/pages/Profile.tsx";
+import CalendarPage from "@/pages/Calendar.tsx";
+import { Calendar as CalendarIcon } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
+import CommandPalette from "@/components/CommandPalette";
 
 // Protected route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -75,6 +78,10 @@ function App() {
                                 syncWithLocation: true,
                                 warnWhenUnsavedChanges: true,
                                 projectId: "rU5QXW-YissXg-5PtwMk",
+                                title: {
+                                    icon: <span className="inline-block w-2 h-2 bg-primary" />,
+                                    text: <span className="font-mono tracking-tight">apptrack</span>,
+                                },
                             }}
 
                             resources={[
@@ -89,6 +96,11 @@ function App() {
                                     create: '/applications/create',
                                     edit: '/applications/edit/:id',
                                     meta: { label: 'Applications', icon: <ClipboardList /> }
+                                },
+                                {
+                                    name: 'calendar',
+                                    list: '/calendar',
+                                    meta: { label: 'Calendar', icon: <CalendarIcon /> }
                                 },
                                 {
                                     name: 'profile',
@@ -127,6 +139,8 @@ function App() {
                                         <Route path="edit/:id" element={<ApplicationsEdit />} />
                                     </Route>
 
+                                    <Route path="/calendar" element={<CalendarPage />} />
+
                                     <Route path="/profile" element={<Profile />} />
 
                                 </Route>
@@ -134,6 +148,7 @@ function App() {
                             </Routes>
                             <Toaster />
                             <RefineKbar />
+                            <CommandPalette />
                             <UnsavedChangesNotifier />
                             <DocumentTitleHandler />
                         </Refine>

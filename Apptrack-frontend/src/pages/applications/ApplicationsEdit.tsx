@@ -9,23 +9,33 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { APPLICATION_STATUSES, BACKEND_URL } from '@/constants';
-import { Loader2, Briefcase, Building2, Calendar, Link2, FileText, ArrowLeft, Save, Trash2 } from 'lucide-react';
+import { APPLICATION_STATUSES, API_URL, WORK_TYPE_OPTIONS, PRIORITY_OPTIONS } from '@/constants';
+import { Loader2, Briefcase, Building2, Calendar, Link2, FileText, ArrowLeft, Save, Trash2, MapPin, DollarSign, Globe, Star, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { Application } from '@/types';
+
+const optionalDate = z.union([
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
+    z.literal(''),
+    z.null(),
+    z.undefined(),
+]).optional();
+const optionalText = z.union([z.string(), z.literal(''), z.null(), z.undefined()]).optional();
 
 const editApplicationSchema = z.object({
     company: z.string().trim().min(1, 'Company name is required').max(120, 'Company name too long'),
     position: z.string().trim().min(1, 'Position is required').max(150, 'Position too long'),
     status: z.enum(['Applied', 'OA', 'Interview', 'Offer', 'Rejected', 'Withdrawn']).optional(),
-    dateApplied: z.union([
-        z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
-        z.literal(''),
-        z.null(),
-        z.undefined()
-    ]).optional(),
-    jobUrl: z.union([z.string(), z.literal(''), z.null(), z.undefined()]).optional(),
-    notes: z.union([z.string(), z.literal(''), z.null(), z.undefined()]).optional(),
+    dateApplied: optionalDate,
+    jobUrl: optionalText,
+    notes: optionalText,
+    interviewDate: optionalDate,
+    oaDeadline: optionalDate,
+    salary: optionalText,
+    location: optionalText,
+    workType: z.union([z.enum(['Internship', 'FullTime', 'Coop', 'Contract']), z.literal(''), z.null(), z.undefined()]).optional(),
+    requiresSponsorship: z.union([z.boolean(), z.null(), z.undefined()]).optional(),
+    priority: z.union([z.enum(['Dream', 'Target', 'Safety']), z.literal(''), z.null(), z.undefined()]).optional(),
 });
 
 type EditApplicationFormData = z.infer<typeof editApplicationSchema>;
@@ -44,12 +54,15 @@ const ApplicationsEdit = () => {
     });
 
     const watchedStatus = watch('status');
+    const watchedWorkType = watch('workType');
+    const watchedPriority = watch('priority');
+    const watchedSponsorship = watch('requiresSponsorship');
 
     // Fetch application data
     useEffect(() => {
         const fetchApplication = async () => {
             try {
-                const response = await fetch(`${BACKEND_URL}/applications/${id}`, {
+                const response = await fetch(`${API_URL}/applications/${id}`, {
                     credentials: 'include',
                 });
                 if (!response.ok) throw new Error('Failed to fetch application');
@@ -63,6 +76,13 @@ const ApplicationsEdit = () => {
                     dateApplied: app.dateApplied || '',
                     jobUrl: app.jobUrl || '',
                     notes: app.notes || '',
+                    interviewDate: app.interviewDate || '',
+                    oaDeadline: app.oaDeadline || '',
+                    salary: app.salary || '',
+                    location: app.location || '',
+                    workType: (app.workType as any) || '',
+                    requiresSponsorship: app.requiresSponsorship ?? undefined,
+                    priority: (app.priority as any) || '',
                 });
             } catch (error) {
                 toast.error('Failed to load application');
@@ -84,7 +104,7 @@ const ApplicationsEdit = () => {
     const onSubmit = async (data: EditApplicationFormData) => {
         setIsSubmitting(true);
         try {
-            const response = await fetch(`${BACKEND_URL}/applications/${id}`, {
+            const response = await fetch(`${API_URL}/applications/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -110,7 +130,7 @@ const ApplicationsEdit = () => {
 
         setIsDeleting(true);
         try {
-            const response = await fetch(`${BACKEND_URL}/applications/${id}`, {
+            const response = await fetch(`${API_URL}/applications/${id}`, {
                 method: 'DELETE',
                 credentials: 'include',
             });
@@ -204,6 +224,76 @@ const ApplicationsEdit = () => {
                                 <FileText className="h-4 w-4 text-muted-foreground" /> Notes
                             </Label>
                             <Textarea id="notes" {...register('notes')} placeholder="Any notes..." rows={4} />
+                        </div>
+
+                        {/* Additional Details */}
+                        <div className="pt-4 border-t border-dashed space-y-4">
+                            <p className="text-sm font-medium text-muted-foreground">Additional Details</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="location" className="flex items-center gap-2">
+                                        <MapPin className="h-4 w-4 text-muted-foreground" /> Location
+                                    </Label>
+                                    <Input id="location" {...register('location')} placeholder="San Francisco, CA" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="salary" className="flex items-center gap-2">
+                                        <DollarSign className="h-4 w-4 text-muted-foreground" /> Salary
+                                    </Label>
+                                    <Input id="salary" {...register('salary')} placeholder="$120k–$150k" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label className="flex items-center gap-2">
+                                        <Globe className="h-4 w-4 text-muted-foreground" /> Work Type
+                                    </Label>
+                                    <Select value={watchedWorkType || ''} onValueChange={(v) => setValue('workType', v as any)}>
+                                        <SelectTrigger><SelectValue placeholder="Pick a type" /></SelectTrigger>
+                                        <SelectContent>
+                                            {WORK_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="flex items-center gap-2">
+                                        <Star className="h-4 w-4 text-muted-foreground" /> Priority
+                                    </Label>
+                                    <Select value={watchedPriority || ''} onValueChange={(v) => setValue('priority', v as any)}>
+                                        <SelectTrigger><SelectValue placeholder="Pick a tier" /></SelectTrigger>
+                                        <SelectContent>
+                                            {PRIORITY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="oaDeadline" className="flex items-center gap-2">
+                                        <Calendar className="h-4 w-4 text-muted-foreground" /> OA Deadline
+                                    </Label>
+                                    <Input id="oaDeadline" type="date" {...register('oaDeadline')} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="interviewDate" className="flex items-center gap-2">
+                                        <Calendar className="h-4 w-4 text-muted-foreground" /> Interview Date
+                                    </Label>
+                                    <Input id="interviewDate" type="date" {...register('interviewDate')} />
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 p-3 rounded-md bg-muted/30">
+                                <input
+                                    id="requiresSponsorship"
+                                    type="checkbox"
+                                    checked={watchedSponsorship === true}
+                                    onChange={(e) => setValue('requiresSponsorship', e.target.checked)}
+                                    className="h-4 w-4"
+                                />
+                                <Label htmlFor="requiresSponsorship" className="flex items-center gap-2 cursor-pointer text-sm">
+                                    <ShieldAlert className="h-4 w-4 text-muted-foreground" />
+                                    I need visa sponsorship for this role
+                                </Label>
+                            </div>
                         </div>
 
                         {/* Submit */}

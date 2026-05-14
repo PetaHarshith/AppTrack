@@ -3,24 +3,23 @@ import { useNavigate, Link } from "react-router";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, User, Mail, AtSign, Lock, Eye, EyeOff, Briefcase, Rocket, Star, Zap } from "lucide-react";
+import { Loader2, Eye, EyeOff, ArrowUpRight } from "lucide-react";
+import AuthBrandPanel from "./AuthBrandPanel";
 
 export default function Signup() {
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [formData, setFormData] = useState({
         name: "",
         email: "",
         username: "",
         password: "",
-        confirmPassword: "",
     });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+        setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
         setError(null);
     };
 
@@ -28,12 +27,6 @@ export default function Signup() {
         e.preventDefault();
         setIsLoading(true);
         setError(null);
-
-        if (formData.password !== formData.confirmPassword) {
-            setError("Passwords do not match");
-            setIsLoading(false);
-            return;
-        }
 
         if (formData.password.length < 8) {
             setError("Password must be at least 8 characters long");
@@ -48,13 +41,11 @@ export default function Signup() {
                 username: formData.username,
                 password: formData.password,
             });
-
             if (error) {
                 setError(error.message || "Failed to create account");
                 setIsLoading(false);
                 return;
             }
-
             navigate("/");
         } catch {
             setError("An unexpected error occurred. Please try again.");
@@ -64,211 +55,152 @@ export default function Signup() {
     };
 
     return (
-        <div className="min-h-screen flex">
-            {/* Left side - Visual Panel */}
-            <div className="hidden lg:flex flex-1 relative overflow-hidden bg-gradient-to-br from-primary via-primary/90 to-primary/80 p-12">
-                {/* Background pattern */}
-                <div className="absolute inset-0 opacity-10">
-                    <div className="absolute top-10 right-10 w-48 h-48 border border-white/20 rounded-full" />
-                    <div className="absolute top-32 right-32 w-72 h-72 border border-white/20 rounded-full" />
-                    <div className="absolute bottom-10 left-10 w-64 h-64 border border-white/20 rounded-full" />
+        <div className="min-h-screen flex bg-background">
+            <AuthBrandPanel />
+
+            <div className="flex-1 flex flex-col p-6 md:p-10">
+                <div className="flex items-center justify-between">
+                    <Link to="/" className="lg:hidden flex items-center gap-2 font-mono font-bold tracking-tight">
+                        <span className="inline-block w-2 h-2 bg-primary" />
+                        apptrack
+                    </Link>
+                    <p className="ml-auto text-sm text-muted-foreground">
+                        Already have one?{" "}
+                        <Link to="/login" className="text-foreground font-medium hover:text-primary transition-colors inline-flex items-center gap-0.5">
+                            Sign in
+                            <ArrowUpRight className="w-3.5 h-3.5" />
+                        </Link>
+                    </p>
                 </div>
 
-                {/* Content */}
-                <div className="relative z-10 flex flex-col justify-between h-full text-primary-foreground">
-                    {/* Logo */}
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
-                            <Briefcase className="w-5 h-5" />
+                <div className="flex-1 flex items-center justify-center">
+                    <div className="w-full max-w-sm">
+                        <div className="mb-8">
+                            <h1 className="text-4xl font-bold tracking-tight">
+                                Start tracking.
+                            </h1>
+                            <p className="text-muted-foreground mt-2">
+                                It takes thirty seconds and lasts your whole job search.
+                            </p>
                         </div>
-                        <span className="text-xl font-bold">AppTrack</span>
-                    </div>
 
-                    {/* Main content */}
-                    <div className="space-y-8">
-                        <h2 className="text-5xl font-bold leading-tight">
-                            Start your<br />journey to<br />your dream job
-                        </h2>
-                        <p className="text-xl text-primary-foreground/80 max-w-md">
-                            Join thousands of job seekers who have streamlined their application process.
-                        </p>
-                    </div>
+                        {error && (
+                            <div className="mb-5 bg-destructive/10 text-destructive text-sm px-3 py-2.5 rounded-md border border-destructive/20">
+                                {error}
+                            </div>
+                        )}
 
-                    {/* Features list */}
-                    <div className="grid grid-cols-3 gap-4">
-                        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 text-center">
-                            <Rocket className="w-8 h-8 mx-auto mb-2" />
-                            <p className="text-sm font-medium">Quick Setup</p>
-                        </div>
-                        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 text-center">
-                            <Star className="w-8 h-8 mx-auto mb-2" />
-                            <p className="text-sm font-medium">Free Forever</p>
-                        </div>
-                        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 text-center">
-                            <Zap className="w-8 h-8 mx-auto mb-2" />
-                            <p className="text-sm font-medium">Smart Insights</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Right side - Form */}
-            <div className="flex-1 flex items-center justify-center p-8 lg:p-12">
-                <div className="w-full max-w-md space-y-8">
-                    {/* Mobile Logo */}
-                    <div className="flex items-center gap-3 lg:hidden">
-                        <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-                            <Briefcase className="w-5 h-5 text-primary-foreground" />
-                        </div>
-                        <span className="text-xl font-bold">AppTrack</span>
-                    </div>
-
-                    {/* Header */}
-                    <div className="space-y-2">
-                        <h1 className="text-4xl font-bold tracking-tight">Create account</h1>
-                        <p className="text-muted-foreground text-lg">
-                            Get started with your free account
-                        </p>
-                    </div>
-
-                    {/* Error */}
-                    {error && (
-                        <div className="bg-destructive/10 text-destructive text-sm p-4 rounded-xl border border-destructive/20">
-                            {error}
-                        </div>
-                    )}
-
-                    {/* Form */}
-                    <form onSubmit={handleSubmit} className="space-y-5">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-muted-foreground">Full Name</label>
-                                <div className="relative">
-                                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <form
+                            onSubmit={handleSubmit}
+                            className="space-y-4"
+                            autoComplete="on"
+                        >
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1.5">
+                                    <label htmlFor="signup-name" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                        Name
+                                    </label>
                                     <Input
+                                        id="signup-name"
                                         name="name"
                                         type="text"
-                                        placeholder="John Doe"
+                                        autoComplete="name"
+                                        placeholder="Jane Doe"
                                         value={formData.name}
                                         onChange={handleChange}
                                         required
                                         disabled={isLoading}
-                                        className="h-12 pl-12 pr-4 rounded-xl border-border/50 bg-muted/30 focus:bg-background transition-colors"
+                                        className="h-11"
                                     />
                                 </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-muted-foreground">Username</label>
-                                <div className="relative">
-                                    <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                                <div className="space-y-1.5">
+                                    <label htmlFor="signup-username" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                        Username
+                                    </label>
                                     <Input
+                                        id="signup-username"
                                         name="username"
                                         type="text"
-                                        placeholder="johndoe"
+                                        autoComplete="username"
+                                        placeholder="janedoe"
                                         value={formData.username}
                                         onChange={handleChange}
                                         required
                                         disabled={isLoading}
-                                        className="h-12 pl-12 pr-4 rounded-xl border-border/50 bg-muted/30 focus:bg-background transition-colors"
+                                        className="h-11"
                                     />
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-muted-foreground">Email</label>
-                            <div className="relative">
-                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                            <div className="space-y-1.5">
+                                <label htmlFor="signup-email" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                    Email
+                                </label>
                                 <Input
+                                    id="signup-email"
                                     name="email"
                                     type="email"
-                                    placeholder="john@example.com"
+                                    autoComplete="email"
+                                    placeholder="jane@example.com"
                                     value={formData.email}
                                     onChange={handleChange}
                                     required
                                     disabled={isLoading}
-                                    className="h-12 pl-12 pr-4 rounded-xl border-border/50 bg-muted/30 focus:bg-background transition-colors"
+                                    className="h-11"
                                 />
                             </div>
-                        </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-muted-foreground">Password</label>
+                            <div className="space-y-1.5">
+                                <label htmlFor="signup-password" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                    Password
+                                </label>
                                 <div className="relative">
-                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                                     <Input
+                                        id="signup-password"
                                         name="password"
                                         type={showPassword ? "text" : "password"}
-                                        placeholder="8+ chars"
+                                        autoComplete="new-password"
+                                        placeholder="At least 8 characters"
                                         value={formData.password}
                                         onChange={handleChange}
                                         required
                                         disabled={isLoading}
-                                        className="h-12 pl-12 pr-10 rounded-xl border-border/50 bg-muted/30 focus:bg-background transition-colors"
+                                        className="h-11 pr-11"
                                     />
                                     <button
                                         type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                        tabIndex={-1}
+                                        onClick={() => setShowPassword((s) => !s)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                        aria-label={showPassword ? "Hide password" : "Show password"}
                                     >
                                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                     </button>
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-muted-foreground">Confirm</label>
-                                <div className="relative">
-                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                                    <Input
-                                        name="confirmPassword"
-                                        type={showConfirmPassword ? "text" : "password"}
-                                        placeholder="Confirm"
-                                        value={formData.confirmPassword}
-                                        onChange={handleChange}
-                                        required
-                                        disabled={isLoading}
-                                        className="h-12 pl-12 pr-10 rounded-xl border-border/50 bg-muted/30 focus:bg-background transition-colors"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                    >
-                                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <Button
-                            type="submit"
-                            className="w-full h-14 text-base font-semibold rounded-xl"
-                            disabled={isLoading}
-                        >
-                            {isLoading ? (
-                                <>
-                                    <Loader2 className="animate-spin" />
-                                    Creating account...
-                                </>
-                            ) : (
-                                "Create Account"
-                            )}
-                        </Button>
-                    </form>
-
-                    {/* Footer */}
-                    <p className="text-center text-muted-foreground">
-                        Already have an account?{" "}
-                        <Link to="/login" className="text-primary font-semibold hover:underline">
-                            Sign in
-                        </Link>
-                    </p>
+                            <Button
+                                type="submit"
+                                className="w-full h-11 font-medium mt-2"
+                                disabled={isLoading}
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                        Creating account
+                                    </>
+                                ) : (
+                                    "Create account"
+                                )}
+                            </Button>
+                        </form>
+                    </div>
                 </div>
+
+                <p className="text-xs text-muted-foreground/60 text-center">
+                    Free for students. Always.
+                </p>
             </div>
         </div>
     );
 }
-

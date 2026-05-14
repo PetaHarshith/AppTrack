@@ -2,10 +2,11 @@ import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router';
 import { ListView } from "@/components/refine-ui/views/list-view.tsx";
 import { Breadcrumb } from "@/components/refine-ui/layout/breadcrumb.tsx";
-import { Search, Send, FileText, Briefcase, Award, XCircle, Clock, ChevronDown, X, Pencil, Check, ArrowUp, ArrowDown, Trash2, Edit } from "lucide-react";
+import { Search, ChevronDown, X, Pencil, Check, ArrowUp, ArrowDown, Trash2, Edit, LayoutGrid, Table as TableIcon } from "lucide-react";
 import { Input } from "@/components/ui/input.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
-import { APPLICATION_STATUS_OPTIONS, APPLICATION_STATUSES, BACKEND_URL } from "@/constants";
+import { APPLICATION_STATUS_OPTIONS, APPLICATION_STATUSES, API_URL, WORK_TYPE_OPTIONS, PRIORITY_OPTIONS, statusColors, statusIcons } from "@/constants";
+import ApplicationsBoard from "./ApplicationsBoard";
 import { CreateButton } from "@/components/refine-ui/buttons/create.tsx";
 import { DataTable } from "@/components/refine-ui/data-table/data-table.tsx";
 import { useTable } from "@refinedev/react-table";
@@ -21,26 +22,6 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
-
-// Status colors matching dashboard (using CSS variables)
-const statusColors: Record<ApplicationStatus, string> = {
-    'Applied': 'var(--chart-1)',
-    'OA': 'var(--chart-4)',
-    'Interview': 'var(--chart-2)',
-    'Offer': '#22c55e',
-    'Rejected': 'var(--chart-3)',
-    'Withdrawn': 'var(--chart-5)'
-};
-
-// Status icons matching dashboard
-const statusIcons: Record<ApplicationStatus, React.ReactNode> = {
-    'Applied': <Send className="h-3 w-3" />,
-    'OA': <FileText className="h-3 w-3" />,
-    'Interview': <Briefcase className="h-3 w-3" />,
-    'Offer': <Award className="h-3 w-3" />,
-    'Rejected': <XCircle className="h-3 w-3" />,
-    'Withdrawn': <Clock className="h-3 w-3" />
-};
 
 // Status Badge Component with Dropdown
 const StatusBadge = ({
@@ -188,7 +169,38 @@ const ApplicationsList = () => {
 
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedStatus, setSelectedStatus] = useState("all");
+    const [selectedWorkType, setSelectedWorkType] = useState("all");
+    const [selectedPriority, setSelectedPriority] = useState("all");
+    const [sponsorshipFilter, setSponsorshipFilter] = useState("all"); // 'all' | 'yes' | 'no'
     const [dateSort, setDateSort] = useState<'desc' | 'asc'>('desc'); // desc = newest, asc = oldest
+    const [viewMode, setViewMode] = useState<'table' | 'board'>(() => {
+        const saved = localStorage.getItem('apptrack:viewMode');
+        return saved === 'board' ? 'board' : 'table';
+    });
+
+    useEffect(() => {
+        localStorage.setItem('apptrack:viewMode', viewMode);
+    }, [viewMode]);
+
+    // Live stat counts for the header strip
+    const [statCounts, setStatCounts] = useState<{ total: number; inPipeline: number; offers: number }>({
+        total: 0, inPipeline: 0, offers: 0,
+    });
+    useEffect(() => {
+        fetch(`${API_URL}/applications/stats`, { credentials: 'include' })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (!data?.data) return;
+                const sc = data.data.statusCounts || {};
+                const pending = (sc['Applied'] || 0) + (sc['OA'] || 0) + (sc['Interview'] || 0);
+                setStatCounts({
+                    total: data.data.total ?? 0,
+                    inPipeline: pending,
+                    offers: sc['Offer'] || 0,
+                });
+            })
+            .catch(() => { /* non-critical */ });
+    }, []);
 
     // Local state for optimistic status updates (prevents row reordering)
     const [statusOverrides, setStatusOverrides] = useState<Record<number, ApplicationStatus>>({});
@@ -205,7 +217,7 @@ const ApplicationsList = () => {
         if (!confirm('Are you sure you want to delete this application?')) return;
 
         try {
-            const response = await fetch(`${BACKEND_URL}/applications/${applicationId}`, {
+            const response = await fetch(`${API_URL}/applications/${applicationId}`, {
                 method: 'DELETE',
                 credentials: 'include',
             });
@@ -225,6 +237,15 @@ const ApplicationsList = () => {
     const statusFilters = selectedStatus === "all" ? [] : [
         { field: "status", operator: "eq" as const, value: selectedStatus },
     ];
+    const workTypeFilters = selectedWorkType === "all" ? [] : [
+        { field: "workType", operator: "eq" as const, value: selectedWorkType },
+    ];
+    const priorityFilters = selectedPriority === "all" ? [] : [
+        { field: "priority", operator: "eq" as const, value: selectedPriority },
+    ];
+    const sponsorshipFilters = sponsorshipFilter === "all" ? [] : [
+        { field: "requiresSponsorship", operator: "eq" as const, value: sponsorshipFilter === "yes" ? "true" : "false" },
+    ];
 
     // Search by company name
     const searchFilters = searchQuery ? [
@@ -237,7 +258,7 @@ const ApplicationsList = () => {
         setStatusOverrides(prev => ({ ...prev, [applicationId]: newStatus }));
 
         try {
-            const response = await fetch(`${BACKEND_URL}/applications/${applicationId}`, {
+            const response = await fetch(`${API_URL}/applications/${applicationId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -267,7 +288,7 @@ const ApplicationsList = () => {
         setNotesOverrides(prev => ({ ...prev, [applicationId]: newNotes }));
 
         try {
-            const response = await fetch(`${BACKEND_URL}/applications/${applicationId}`, {
+            const response = await fetch(`${API_URL}/applications/${applicationId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -306,7 +327,13 @@ const ApplicationsList = () => {
                 accessorKey: 'position',
                 size: 200,
                 header: () => <p className="column-title">Position</p>,
-                cell: ({ getValue }) => <span className="text-foreground">{getValue<string>()}</span>,
+                cell: ({ getValue }) => {
+                    const v = getValue<string>();
+                    if (!v || v === '(needs review)') {
+                        return <span className="text-muted-foreground/50 italic">Position TBD</span>;
+                    }
+                    return <span className="text-foreground">{v}</span>;
+                },
             },
             {
                 id: 'status',
@@ -418,7 +445,7 @@ const ApplicationsList = () => {
             resource: 'applications',
             pagination: { pageSize: 10, mode: 'server' },
             filters: {
-                permanent: [...statusFilters, ...searchFilters],
+                permanent: [...statusFilters, ...searchFilters, ...workTypeFilters, ...priorityFilters, ...sponsorshipFilters],
             },
             sorters: {
                 permanent: [
@@ -428,50 +455,164 @@ const ApplicationsList = () => {
         }
     });
 
+    const activeFilterCount =
+        (selectedStatus !== 'all' ? 1 : 0) +
+        (selectedWorkType !== 'all' ? 1 : 0) +
+        (selectedPriority !== 'all' ? 1 : 0) +
+        (sponsorshipFilter !== 'all' ? 1 : 0) +
+        (searchQuery ? 1 : 0);
+
+    const clearFilters = () => {
+        setSelectedStatus('all');
+        setSelectedWorkType('all');
+        setSelectedPriority('all');
+        setSponsorshipFilter('all');
+        setSearchQuery('');
+    };
+
     return (
         <ListView>
             <Breadcrumb />
-            <h1 className="page-title">Applications</h1>
 
-            <div className="intro-row">
-                <p>Track and manage your job applications in one place.</p>
-
-                <div className="actions-row">
-                    <div className="search-field">
-                        <Search className="search-icon" />
-                        <Input
-                            type="text"
-                            placeholder="Search by company"
-                            className="pl-10 w-full"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
+            {/* ---------- Hero header ---------- */}
+            <div className="flex items-end justify-between gap-4 flex-wrap mb-6">
+                <div>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                        // applications
+                    </p>
+                    <div className="flex items-baseline gap-3 mt-1">
+                        <h1 className="text-4xl font-bold tracking-tight">Applications</h1>
+                        <span className="font-mono text-2xl font-bold tabular-nums text-muted-foreground">
+                            {statCounts.total}
+                        </span>
                     </div>
-                    <div className="flex gap-2 w-full sm:w-auto">
-                        <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Filter by status..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value={"all"}>
-                                    All Status
-                                </SelectItem>
-                                {APPLICATION_STATUS_OPTIONS.map(status => (
-                                    <SelectItem key={status.value} value={status.value}>
-                                        {status.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <CreateButton />
+                    <p className="text-sm text-muted-foreground mt-1.5">
+                        Your job-search pipeline, end to end.
+                    </p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-0 border rounded-md p-0.5 bg-muted/30">
+                        <Button
+                            size="sm"
+                            variant={viewMode === 'table' ? 'default' : 'ghost'}
+                            onClick={() => setViewMode('table')}
+                            className="h-7 px-3 gap-1.5 font-mono text-xs"
+                            aria-label="Table view"
+                        >
+                            <TableIcon className="h-3.5 w-3.5" />
+                            list
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant={viewMode === 'board' ? 'default' : 'ghost'}
+                            onClick={() => setViewMode('board')}
+                            className="h-7 px-3 gap-1.5 font-mono text-xs"
+                            aria-label="Board view"
+                        >
+                            <LayoutGrid className="h-3.5 w-3.5" />
+                            board
+                        </Button>
                     </div>
+                    <CreateButton />
                 </div>
             </div>
 
-            <DataTable
-                table={applicationTable}
-                onRowClick={(row) => navigate(`/applications/edit/${row.id}`)}
-            />
+            {/* ---------- Live stat strip ---------- */}
+            <div className="grid grid-cols-3 border-y divide-x divide-border mb-6">
+                <div className="px-4 py-3">
+                    <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">total</p>
+                    <p className="font-mono text-2xl font-bold tabular-nums mt-0.5">{statCounts.total}</p>
+                </div>
+                <div className="px-4 py-3">
+                    <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">in pipeline</p>
+                    <p className="font-mono text-2xl font-bold tabular-nums mt-0.5 text-chart-1">{statCounts.inPipeline}</p>
+                </div>
+                <div className="px-4 py-3">
+                    <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">offers</p>
+                    <p className={`font-mono text-2xl font-bold tabular-nums mt-0.5 ${statCounts.offers > 0 ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+                        {statCounts.offers}
+                    </p>
+                </div>
+            </div>
+
+            {/* ---------- Filter row ---------- */}
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+                <div className="relative flex-1 min-w-[220px] max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        type="text"
+                        placeholder="Search by company..."
+                        className="pl-9 h-9 font-mono text-sm"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                </div>
+                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                    <SelectTrigger className="h-9 w-[130px]">
+                        <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value={"all"}>All Status</SelectItem>
+                        {APPLICATION_STATUS_OPTIONS.map(status => (
+                            <SelectItem key={status.value} value={status.value}>
+                                {status.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Select value={selectedWorkType} onValueChange={setSelectedWorkType}>
+                    <SelectTrigger className="h-9 w-[130px]">
+                        <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Types</SelectItem>
+                        {WORK_TYPE_OPTIONS.map(o => (
+                            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Select value={selectedPriority} onValueChange={setSelectedPriority}>
+                    <SelectTrigger className="h-9 w-[130px]">
+                        <SelectValue placeholder="Priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Priority</SelectItem>
+                        {PRIORITY_OPTIONS.map(o => (
+                            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Select value={sponsorshipFilter} onValueChange={setSponsorshipFilter}>
+                    <SelectTrigger className="h-9 w-[160px]">
+                        <SelectValue placeholder="Sponsorship" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Any Sponsorship</SelectItem>
+                        <SelectItem value="yes">Needs Sponsorship</SelectItem>
+                        <SelectItem value="no">No Sponsorship</SelectItem>
+                    </SelectContent>
+                </Select>
+                {activeFilterCount > 0 && (
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={clearFilters}
+                        className="h-9 px-2 text-xs font-mono gap-1"
+                    >
+                        <X className="h-3.5 w-3.5" />
+                        clear {activeFilterCount}
+                    </Button>
+                )}
+            </div>
+
+            {viewMode === 'table' ? (
+                <DataTable
+                    table={applicationTable}
+                    onRowClick={(row) => navigate(`/applications/edit/${row.id}`)}
+                />
+            ) : (
+                <ApplicationsBoard />
+            )}
         </ListView>
     )
 }

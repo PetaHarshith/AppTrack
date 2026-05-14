@@ -1,10 +1,6 @@
 import { BaseRecord, DataProvider, GetListParams } from "@refinedev/core";
-import { BACKEND_URL } from "@/constants";
+import { API_URL } from "@/constants";
 import { ListResponse } from "@/types";
-
-if (!BACKEND_URL) {
-    throw new Error('Missing backend URL');
-}
 
 // Custom data provider that includes credentials for cookie-based auth
 export const dataProvider: DataProvider = {
@@ -43,7 +39,7 @@ export const dataProvider: DataProvider = {
             params.set('order', primarySorter.order);
         }
 
-        const response = await fetch(`${BACKEND_URL}/${resource}?${params.toString()}`, {
+        const response = await fetch(`${API_URL}/${resource}?${params.toString()}`, {
             credentials: 'include',
         });
 
@@ -56,7 +52,7 @@ export const dataProvider: DataProvider = {
     },
 
     getOne: async ({ resource, id }) => {
-        const response = await fetch(`${BACKEND_URL}/${resource}/${id}`, {
+        const response = await fetch(`${API_URL}/${resource}/${id}`, {
             credentials: 'include',
         });
         const payload = await response.json();
@@ -64,7 +60,7 @@ export const dataProvider: DataProvider = {
     },
 
     create: async ({ resource, variables }) => {
-        const response = await fetch(`${BACKEND_URL}/${resource}`, {
+        const response = await fetch(`${API_URL}/${resource}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -75,7 +71,7 @@ export const dataProvider: DataProvider = {
     },
 
     update: async ({ resource, id, variables }) => {
-        const response = await fetch(`${BACKEND_URL}/${resource}/${id}`, {
+        const response = await fetch(`${API_URL}/${resource}/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -86,7 +82,7 @@ export const dataProvider: DataProvider = {
     },
 
     deleteOne: async ({ resource, id }) => {
-        const response = await fetch(`${BACKEND_URL}/${resource}/${id}`, {
+        const response = await fetch(`${API_URL}/${resource}/${id}`, {
             method: 'DELETE',
             credentials: 'include',
         });
@@ -94,5 +90,5 @@ export const dataProvider: DataProvider = {
         return { data: payload.data };
     },
 
-    getApiUrl: () => BACKEND_URL,
+    getApiUrl: () => API_URL,
 };

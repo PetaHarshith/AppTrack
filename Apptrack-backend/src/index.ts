@@ -1,103 +1,108 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { toNodeHandler, fromNodeHeaders } from 'better-auth/node';
-import applicationsRouter from './routes/applications';
 import cors from 'cors';
+import { eq } from 'drizzle-orm';
+import applicationsRouter from './routes/applications';
+import usersRouter from './routes/users';
 import { auth } from './lib/auth';
 import { db } from './db';
-import { eq } from 'drizzle-orm';
 import { user as authUserTable } from './db/schema/auth';
 import { users } from './db/schema/app';
 
+const isProd = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+
 const app = express();
-const PORT = 8000;
 
-if (!process.env.FRONTEND_URL) {
-    throw new Error('Missing frontend URL');
-}
+// ---------- CORS ----------
+// Frontend origins allowed in dev + the production frontend URL from env.
+// Chrome extension origins are allowed via the chrome-extension:// prefix check.
+const allowedOrigins = new Set<string>(
+    [
+        process.env.FRONTEND_URL,
+        !isProd && 'http://localhost:5173',
+        !isProd && 'http://localhost:5174',
+    ].filter(Boolean) as string[]
+);
 
-app.use(cors({
-    origin: [process.env.FRONTEND_URL!, 'http://localhost:5174', 'http://localhost:5173'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true
-}));
+app.use(
+    cors({
+        origin: (origin, callback) => {
+            if (!origin) return callback(null, true);
+            if (allowedOrigins.has(origin)) return callback(null, true);
+            if (origin.startsWith('chrome-extension://')) return callback(null, true);
+            return callback(new Error(`CORS: origin ${origin} not allowed`));
+        },
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+        credentials: true,
+    })
+);
 
-// Better-auth handler - must be before express.json() for auth routes
+// ---------- better-auth ----------
+// Mounted at /api/auth — must be BEFORE express.json() to receive the raw body.
 app.all('/api/auth/*splat', toNodeHandler(auth));
 
 app.use(express.json());
 
-// Middleware to extract authenticated user from session using better-auth's API
+// ---------- session middleware ----------
+// Resolves the integer userId for routes that need it. Skips routes that don't.
 app.use(async (req: Request, _res: Response, next: NextFunction) => {
-    // Skip for non-application routes
-    if (!req.path.startsWith('/applications')) {
+    if (!req.path.startsWith('/api/applications') && !req.path.startsWith('/api/users')) {
         return next();
     }
-
     try {
-        // Use better-auth's built-in session validation
-        const session = await auth.api.getSession({
-            headers: fromNodeHeaders(req.headers),
-        });
-
-        if (!session || !session.user) {
-            return next(); // No valid session
-        }
+        const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
+        if (!session || !session.user) return next();
 
         const authUserId = session.user.id;
-
-        // Look up custom users table
         let userResult = await db
             .select()
             .from(users)
             .where(eq(users.authUserId, authUserId))
             .limit(1);
 
-        // If user doesn't exist in custom users table, create them (lazy creation)
+        // Lazy-create the integer-id user row on first hit
         if (!userResult.length) {
-            // Get user info from better-auth user table
             const authUserResult = await db
                 .select()
                 .from(authUserTable)
                 .where(eq(authUserTable.id, authUserId))
                 .limit(1);
-
             if (authUserResult.length) {
                 const authUser = authUserResult[0]!;
-
-                // Create custom user record
-                const newUser = await db
+                userResult = await db
                     .insert(users)
                     .values({
-                        authUserId: authUserId,
+                        authUserId,
                         email: authUser.email,
                         name: authUser.name,
                     })
                     .returning();
-
-                userResult = newUser;
-                console.log(`[Auth Middleware] Created custom user for: ${authUser.email}`);
             }
         }
-
         if (userResult.length) {
-            // Attach integer userId to request for use in route handlers
             (req as any).userId = userResult[0]!.id;
-            console.log(`[Auth Middleware] User authenticated: ${session.user.email}, userId: ${userResult[0]!.id}`);
         }
     } catch (error) {
-        console.error('[Auth Middleware] Error:', error);
+        console.error('[auth middleware]', error);
     }
-
     next();
 });
 
-app.get('/', (_req, res) => {
-    res.send('Welcome to the Application Tracking API!');
+// ---------- routes ----------
+app.get('/api/health', (_req, res) => {
+    res.json({ ok: true, env: isProd ? 'prod' : 'dev' });
 });
 
-// Register routes
-app.use('/applications', applicationsRouter);
+app.use('/api/applications', applicationsRouter);
+app.use('/api/users', usersRouter);
 
-app.listen(PORT, () => {
-    console.log(`Server is running on port http://localhost:${PORT}`);
-});
+// ---------- export + conditional listen ----------
+// Vercel imports `app` as the serverless handler. Local dev calls listen().
+if (!process.env.VERCEL) {
+    const PORT = parseInt(process.env.PORT || '8000', 10);
+    app.listen(PORT, () => {
+        console.log(`Server running on http://localhost:${PORT}`);
+    });
+}
+
+export default app;

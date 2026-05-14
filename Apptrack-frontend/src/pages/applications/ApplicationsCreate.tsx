@@ -9,9 +9,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { APPLICATION_STATUSES, BACKEND_URL } from '@/constants';
-import { Loader2, Briefcase, Building2, Calendar, Link2, FileText, ArrowLeft, Send } from 'lucide-react';
+import { APPLICATION_STATUSES } from '@/constants';
+import { Loader2, Briefcase, Building2, Calendar, Link2, FileText, ArrowLeft, Send, Sparkles, DollarSign, MapPin, Globe, ShieldAlert, Star } from 'lucide-react';
 import { toast } from 'sonner';
+import { WORK_TYPE_OPTIONS, PRIORITY_OPTIONS, API_URL } from '@/constants';
+
+const optionalDate = z.union([
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
+    z.literal(''),
+    z.null(),
+    z.undefined(),
+]).optional();
+const optionalText = z.union([z.string(), z.literal(''), z.null(), z.undefined()]).optional();
 
 // Zod schema matching backend validation
 // NOTE: userId is NOT included - backend uses authenticated user's ID
@@ -19,14 +28,16 @@ const createApplicationSchema = z.object({
     company: z.string().trim().min(1, 'Company name is required').max(120, 'Company name too long'),
     position: z.string().trim().min(1, 'Position is required').max(150, 'Position too long'),
     status: z.enum(['Applied', 'OA', 'Interview', 'Offer', 'Rejected', 'Withdrawn']).optional(),
-    dateApplied: z.union([
-        z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
-        z.literal(''),
-        z.null(),
-        z.undefined()
-    ]).optional(),
-    jobUrl: z.union([z.string(), z.literal(''), z.null(), z.undefined()]).optional(),
-    notes: z.union([z.string(), z.literal(''), z.null(), z.undefined()]).optional(),
+    dateApplied: optionalDate,
+    jobUrl: optionalText,
+    notes: optionalText,
+    interviewDate: optionalDate,
+    oaDeadline: optionalDate,
+    salary: optionalText,
+    location: optionalText,
+    workType: z.union([z.enum(['Internship', 'FullTime', 'Coop', 'Contract']), z.literal(''), z.null(), z.undefined()]).optional(),
+    requiresSponsorship: z.union([z.boolean(), z.null(), z.undefined()]).optional(),
+    priority: z.union([z.enum(['Dream', 'Target', 'Safety']), z.literal(''), z.null(), z.undefined()]).optional(),
 });
 
 type CreateApplicationFormData = z.infer<typeof createApplicationSchema>;
@@ -34,9 +45,20 @@ type CreateApplicationFormData = z.infer<typeof createApplicationSchema>;
 const ApplicationsCreate = () => {
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [importUrl, setImportUrl] = useState('');
+    const [isImporting, setIsImporting] = useState(false);
+    const [showDetails, setShowDetails] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const cardRef = useRef<HTMLDivElement>(null);
     const headerRef = useRef<HTMLDivElement>(null);
+    const importInputRef = useRef<HTMLInputElement>(null);
+
+    // Deep link from command palette: focus the import field when arriving with #import
+    useEffect(() => {
+        if (window.location.hash === '#import') {
+            setTimeout(() => importInputRef.current?.focus(), 300);
+        }
+    }, []);
 
     const {
         register,
@@ -55,6 +77,47 @@ const ApplicationsCreate = () => {
     });
 
     const watchedStatus = watch('status');
+    const watchedWorkType = watch('workType');
+    const watchedPriority = watch('priority');
+    const watchedSponsorship = watch('requiresSponsorship');
+
+    const handleImportUrl = async () => {
+        if (!importUrl.trim()) {
+            toast.error('Paste a job posting URL first');
+            return;
+        }
+        setIsImporting(true);
+        try {
+            const res = await fetch(`${API_URL}/applications/import-url`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ url: importUrl.trim() }),
+            });
+            const json = await res.json();
+            if (!res.ok || !json.ok) {
+                if (json.reason === 'site_requires_login') {
+                    toast.error("This site blocks automated reads — fill in manually");
+                } else {
+                    toast.error(json.message || "Couldn't parse this page — fill it in manually");
+                }
+                return;
+            }
+            const d = json.data;
+            if (d.company) setValue('company', d.company, { shouldValidate: true });
+            if (d.position) setValue('position', d.position, { shouldValidate: true });
+            if (d.location) setValue('location', d.location);
+            if (d.salary) setValue('salary', d.salary);
+            if (d.workType) setValue('workType', d.workType);
+            if (d.jobUrl) setValue('jobUrl', d.jobUrl);
+            toast.success(`Imported from ${d.source}`);
+            setShowDetails(true);
+        } catch {
+            toast.error("Couldn't reach import service");
+        } finally {
+            setIsImporting(false);
+        }
+    };
 
     // Smooth entrance animation
     useEffect(() => {
@@ -94,7 +157,7 @@ const ApplicationsCreate = () => {
         setIsSubmitting(true);
 
         try {
-            const response = await fetch(`${BACKEND_URL}/applications`, {
+            const response = await fetch(`${API_URL}/applications`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -193,6 +256,41 @@ const ApplicationsCreate = () => {
                 className="max-w-2xl mx-auto bg-card border border-border rounded-2xl shadow-xl overflow-hidden"
             >
                 <form onSubmit={handleSubmit(onSubmit, onError)}>
+                    {/* Smart Import */}
+                    <div className="form-field px-6 pt-6">
+                        <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Sparkles className="w-4 h-4 text-primary" />
+                                <span className="text-sm font-medium">Smart Import</span>
+                                <span className="text-xs text-muted-foreground">Greenhouse, Lever, Ashby & most ATS pages</span>
+                            </div>
+                            <div className="flex gap-2">
+                                <Input
+                                    ref={importInputRef}
+                                    value={importUrl}
+                                    onChange={(e) => setImportUrl(e.target.value)}
+                                    placeholder="https://boards.greenhouse.io/..."
+                                    className="h-9 font-mono text-sm"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleImportUrl();
+                                        }
+                                    }}
+                                />
+                                <Button
+                                    type="button"
+                                    onClick={handleImportUrl}
+                                    disabled={isImporting}
+                                    size="sm"
+                                    className="h-9"
+                                >
+                                    {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Import'}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Form Content */}
                     <div className="p-6 space-y-5">
                         {/* Row 1: Company & Position */}
@@ -294,6 +392,95 @@ const ApplicationsCreate = () => {
                                 className="resize-none"
                             />
                         </div>
+
+                        {/* Details toggle */}
+                        <button
+                            type="button"
+                            onClick={() => setShowDetails((s) => !s)}
+                            className="text-sm text-primary hover:underline"
+                        >
+                            {showDetails ? '− Hide additional details' : '+ Add more details (location, salary, type, deadlines)'}
+                        </button>
+
+                        {showDetails && (
+                            <div className="space-y-4 pt-2 border-t border-dashed">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="form-field space-y-1.5">
+                                        <Label htmlFor="location" className="flex items-center gap-2 text-sm font-medium">
+                                            <MapPin className="w-4 h-4 text-muted-foreground" /> Location
+                                        </Label>
+                                        <Input id="location" {...register('location')} placeholder="San Francisco, CA" className="h-10" />
+                                    </div>
+                                    <div className="form-field space-y-1.5">
+                                        <Label htmlFor="salary" className="flex items-center gap-2 text-sm font-medium">
+                                            <DollarSign className="w-4 h-4 text-muted-foreground" /> Salary
+                                        </Label>
+                                        <Input id="salary" {...register('salary')} placeholder="$120k–$150k" className="h-10" />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="form-field space-y-1.5">
+                                        <Label className="flex items-center gap-2 text-sm font-medium">
+                                            <Globe className="w-4 h-4 text-muted-foreground" /> Work Type
+                                        </Label>
+                                        <Select
+                                            value={watchedWorkType || ''}
+                                            onValueChange={(v) => setValue('workType', v as any)}
+                                        >
+                                            <SelectTrigger className="h-10"><SelectValue placeholder="Pick a type" /></SelectTrigger>
+                                            <SelectContent>
+                                                {WORK_TYPE_OPTIONS.map(o => (
+                                                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="form-field space-y-1.5">
+                                        <Label className="flex items-center gap-2 text-sm font-medium">
+                                            <Star className="w-4 h-4 text-muted-foreground" /> Priority
+                                        </Label>
+                                        <Select
+                                            value={watchedPriority || ''}
+                                            onValueChange={(v) => setValue('priority', v as any)}
+                                        >
+                                            <SelectTrigger className="h-10"><SelectValue placeholder="Pick a tier" /></SelectTrigger>
+                                            <SelectContent>
+                                                {PRIORITY_OPTIONS.map(o => (
+                                                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="form-field space-y-1.5">
+                                        <Label htmlFor="oaDeadline" className="flex items-center gap-2 text-sm font-medium">
+                                            <Calendar className="w-4 h-4 text-muted-foreground" /> OA Deadline
+                                        </Label>
+                                        <Input id="oaDeadline" type="date" {...register('oaDeadline')} className="h-10" />
+                                    </div>
+                                    <div className="form-field space-y-1.5">
+                                        <Label htmlFor="interviewDate" className="flex items-center gap-2 text-sm font-medium">
+                                            <Calendar className="w-4 h-4 text-muted-foreground" /> Interview Date
+                                        </Label>
+                                        <Input id="interviewDate" type="date" {...register('interviewDate')} className="h-10" />
+                                    </div>
+                                </div>
+                                <div className="form-field flex items-center gap-3 p-3 rounded-md bg-muted/30">
+                                    <input
+                                        id="requiresSponsorship"
+                                        type="checkbox"
+                                        checked={watchedSponsorship === true}
+                                        onChange={(e) => setValue('requiresSponsorship', e.target.checked)}
+                                        className="h-4 w-4"
+                                    />
+                                    <Label htmlFor="requiresSponsorship" className="flex items-center gap-2 cursor-pointer text-sm">
+                                        <ShieldAlert className="w-4 h-4 text-muted-foreground" />
+                                        I need visa sponsorship for this role
+                                    </Label>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Footer / Actions */}

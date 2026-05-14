@@ -1,0 +1,34 @@
+{
+  "name": "apptrack",
+  "version": "1.0.0",
+  "description": "Job application tracker — full-stack monorepo (frontend + backend + Chrome extension).",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:backend": "tsx watch Apptrack-backend/src/index.ts",
+    "dev:frontend": "npm --prefix Apptrack-frontend run dev",
+    "build:frontend": "npm --prefix Apptrack-frontend ci && npm --prefix Apptrack-frontend run build",
+    "vercel-build": "npm run build:frontend",
+    "db:generate": "drizzle-kit generate --config Apptrack-backend/drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config Apptrack-backend/drizzle.config.ts",
+    "db:push": "drizzle-kit push --config Apptrack-backend/drizzle.config.ts"
+  },
+  "dependencies": {
+    "better-auth": "^1.5.0",
+    "cheerio": "^1.2.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "drizzle-orm": "^0.45.1",
+    "express": "^5.2.1",
+    "postgres": "^3.4.8",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.3.0",
+    "drizzle-kit": "^0.31.9",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

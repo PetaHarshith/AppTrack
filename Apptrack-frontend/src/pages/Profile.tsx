@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
 import {
     AlertDialog,
     AlertDialogAction,
@@ -17,11 +14,12 @@ import {
 } from '@/components/ui/alert-dialog'
 import { useSession, authClient, signOut } from '@/lib/auth-client'
 import { useNavigate } from 'react-router'
-import { User, Palette, Trash2, Check, Loader2, Sun, Moon, Monitor } from 'lucide-react'
+import { Trash2, Check, Loader2, Sun, Moon, Monitor, LogOut, AtSign } from 'lucide-react'
 import { useTheme } from '@/components/refine-ui/theme/theme-provider'
 import { cn } from '@/lib/utils'
+import { API_URL } from '@/constants'
+import { GenerativeAvatar } from '@/components/dataviz/GenerativeAvatar'
 
-// Color themes inspired by tweakcn
 const colorThemes = [
     { name: 'Default', primary: 'oklch(0.6420 0.1691 38.5815)', accent: 'oklch(0.4138 0.0846 259.8759)', class: 'theme-default' },
     { name: 'Rose', primary: 'oklch(0.6455 0.2123 12.5913)', accent: 'oklch(0.5693 0.1458 4.6328)', class: 'theme-rose' },
@@ -37,6 +35,12 @@ const modeOptions = [
     { value: 'system' as const, label: 'System', icon: Monitor },
 ]
 
+const SectionLabel = ({ label }: { label: string }) => (
+    <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+        // {label}
+    </p>
+)
+
 const Profile = () => {
     const { data: session, isPending } = useSession()
     const navigate = useNavigate()
@@ -48,7 +52,10 @@ const Profile = () => {
     const [updateSuccess, setUpdateSuccess] = useState(false)
     const [selectedColorTheme, setSelectedColorTheme] = useState('theme-default')
 
-    // Load saved color theme on mount
+    const [accountStats, setAccountStats] = useState<{ totalApps: number; offers: number; memberSince: string | null }>({
+        totalApps: 0, offers: 0, memberSince: null,
+    })
+
     useEffect(() => {
         const savedTheme = localStorage.getItem('color-theme') || 'theme-default'
         setSelectedColorTheme(savedTheme)
@@ -57,12 +64,36 @@ const Profile = () => {
         }
     }, [])
 
-    // Update name when session loads
     useEffect(() => {
         if (session?.user?.name) {
             setName(session.user.name)
         }
     }, [session?.user?.name])
+
+    // Pull lightweight account stats from existing endpoints
+    useEffect(() => {
+        if (!session?.user) return
+        fetch(`${API_URL}/applications/stats`, { credentials: 'include' })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (!data?.data) return
+                setAccountStats(prev => ({
+                    ...prev,
+                    totalApps: data.data.total ?? 0,
+                    offers: data.data.statusCounts?.Offer || 0,
+                }))
+            })
+            .catch(() => { /* non-critical */ })
+
+        fetch(`${API_URL}/users/me`, { credentials: 'include' })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (data?.data?.createdAt) {
+                    setAccountStats(prev => ({ ...prev, memberSince: data.data.createdAt }))
+                }
+            })
+            .catch(() => { /* non-critical */ })
+    }, [session?.user])
 
     const handleUpdateProfile = async () => {
         if (!name.trim()) return
@@ -93,9 +124,7 @@ const Profile = () => {
 
     const applyColorTheme = (themeClass: string) => {
         setSelectedColorTheme(themeClass)
-        // Remove all theme classes
         document.documentElement.classList.remove(...colorThemes.map(t => t.class))
-        // Add the selected theme class
         if (themeClass !== 'theme-default') {
             document.documentElement.classList.add(themeClass)
         }
@@ -110,100 +139,159 @@ const Profile = () => {
         )
     }
 
-    return (
-        <div className="p-6 max-w-4xl mx-auto space-y-6">
-            {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-foreground tracking-tight">Profile Settings</h1>
-                <p className="text-muted-foreground mt-1">Manage your account and preferences</p>
-            </div>
+    const identityKey = session?.user?.name || session?.user?.email || 'user'
+    const memberSinceLabel = accountStats.memberSince
+        ? new Date(accountStats.memberSince).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+        : '—'
+    const username = (session?.user as { username?: string } | undefined)?.username
 
-            {/* Account Info */}
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <User className="h-5 w-5 text-primary" />
+    return (
+        <div className="p-4 md:p-6 max-w-[1100px] mx-auto w-full space-y-10">
+            {/* ---------- Hero header ---------- */}
+            <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                    // profile
+                </p>
+                <div className="flex items-end justify-between flex-wrap gap-6 mt-3">
+                    <div className="flex items-center gap-5">
+                        <div className="relative">
+                            <GenerativeAvatar name={identityKey} size={80} className="shadow-md" />
+                            <span className="absolute -bottom-1 -right-1 inline-block w-3 h-3 bg-emerald-500 rounded-full border-2 border-background" />
                         </div>
                         <div>
-                            <CardTitle>Account Information</CardTitle>
-                            <CardDescription>Update your profile details</CardDescription>
+                            <h1 className="text-3xl font-bold tracking-tight">
+                                {session?.user?.name || 'You'}
+                            </h1>
+                            <div className="flex items-center gap-3 mt-1 flex-wrap">
+                                <span className="font-mono text-sm text-muted-foreground inline-flex items-center gap-1">
+                                    <AtSign className="h-3.5 w-3.5" />
+                                    {username || session?.user?.email?.split('@')[0] || 'user'}
+                                </span>
+                                <span className="text-muted-foreground/40">·</span>
+                                <span className="text-sm text-muted-foreground">{session?.user?.email}</span>
+                            </div>
                         </div>
                     </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                            <Label htmlFor="email">Email</Label>
-                            <Input id="email" value={session?.user?.email || ''} disabled className="bg-muted" />
-                            <p className="text-xs text-muted-foreground">Email cannot be changed</p>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="name">Display Name</Label>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => { await signOut(); navigate('/login'); }}
+                        className="gap-2"
+                    >
+                        <LogOut className="h-4 w-4" />
+                        Sign out
+                    </Button>
+                </div>
+            </div>
+
+            {/* ---------- Account stat strip ---------- */}
+            <div className="grid grid-cols-3 border-y divide-x divide-border">
+                <div className="px-4 py-4">
+                    <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">applications</p>
+                    <p className="font-mono text-2xl font-bold tabular-nums mt-0.5">{accountStats.totalApps}</p>
+                </div>
+                <div className="px-4 py-4">
+                    <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">offers</p>
+                    <p className={`font-mono text-2xl font-bold tabular-nums mt-0.5 ${accountStats.offers > 0 ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+                        {accountStats.offers}
+                    </p>
+                </div>
+                <div className="px-4 py-4">
+                    <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">member since</p>
+                    <p className="font-mono text-2xl font-bold tabular-nums mt-0.5">{memberSinceLabel}</p>
+                </div>
+            </div>
+
+            {/* ---------- Account section ---------- */}
+            <section>
+                <SectionLabel label="account" />
+                <h2 className="text-xl font-bold tracking-tight mt-1">Identity</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">How you show up in AppTrack.</p>
+
+                <div className="mt-5 rounded-xl border bg-card p-5 md:p-6">
+                    <div className="grid gap-5 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                            <label htmlFor="profile-name" className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                                Display name
+                            </label>
                             <Input
-                                id="name"
+                                id="profile-name"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                placeholder="Enter your name"
+                                placeholder="Your name"
+                                className="h-10"
                             />
                         </div>
+                        <div className="space-y-1.5">
+                            <label htmlFor="profile-email" className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                                Email
+                            </label>
+                            <Input
+                                id="profile-email"
+                                value={session?.user?.email || ''}
+                                disabled
+                                className="h-10 font-mono text-sm bg-muted/40"
+                            />
+                            <p className="font-mono text-[10px] text-muted-foreground/70">read-only</p>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 mt-5">
                         <Button onClick={handleUpdateProfile} disabled={isUpdating || !name.trim()}>
                             {isUpdating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                            Save Changes
+                            Save changes
                         </Button>
                         {updateSuccess && (
-                            <span className="text-sm text-green-600 flex items-center gap-1">
-                                <Check className="h-4 w-4" /> Saved successfully
+                            <span className="font-mono text-xs uppercase tracking-wider text-emerald-500 flex items-center gap-1">
+                                <Check className="h-3.5 w-3.5" /> saved
                             </span>
                         )}
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+            </section>
 
-            {/* Appearance */}
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <Palette className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                            <CardTitle>Appearance</CardTitle>
-                            <CardDescription>Customize how AppTrack looks</CardDescription>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    {/* Mode Selection */}
-                    <div className="space-y-3">
-                        <Label>Mode</Label>
-                        <div className="flex gap-2">
+            {/* ---------- Appearance section ---------- */}
+            <section>
+                <SectionLabel label="appearance" />
+                <h2 className="text-xl font-bold tracking-tight mt-1">Look & feel</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">Make AppTrack feel like yours.</p>
+
+                <div className="mt-5 rounded-xl border bg-card p-5 md:p-6 space-y-7">
+                    {/* Mode */}
+                    <div>
+                        <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+                            Mode
+                        </p>
+                        <div className="grid grid-cols-3 gap-2">
                             {modeOptions.map((option) => {
                                 const Icon = option.icon
                                 const isSelected = theme === option.value
                                 return (
-                                    <Button
+                                    <button
                                         key={option.value}
-                                        variant={isSelected ? 'default' : 'outline'}
-                                        className={cn('flex-1', isSelected && 'ring-2 ring-primary ring-offset-2')}
                                         onClick={() => setTheme(option.value)}
+                                        className={cn(
+                                            'flex flex-col items-center justify-center gap-2 py-4 rounded-lg border-2 transition-all',
+                                            isSelected
+                                                ? 'border-primary bg-primary/5'
+                                                : 'border-border hover:border-primary/40 hover:bg-muted/40'
+                                        )}
                                     >
-                                        <Icon className="h-4 w-4 mr-2" />
-                                        {option.label}
-                                    </Button>
+                                        <Icon className={cn('h-5 w-5', isSelected ? 'text-primary' : 'text-muted-foreground')} />
+                                        <span className={cn('font-mono text-xs uppercase tracking-wider', isSelected ? 'text-foreground font-semibold' : 'text-muted-foreground')}>
+                                            {option.label}
+                                        </span>
+                                    </button>
                                 )
                             })}
                         </div>
                     </div>
 
-                    <Separator />
-
-                    {/* Color Theme Selection */}
-                    <div className="space-y-3">
-                        <Label>Color Theme</Label>
-                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                    {/* Color theme */}
+                    <div>
+                        <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+                            Accent color
+                        </p>
+                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                             {colorThemes.map((colorTheme) => {
                                 const isSelected = selectedColorTheme === colorTheme.class
                                 return (
@@ -211,26 +299,28 @@ const Profile = () => {
                                         key={colorTheme.class}
                                         onClick={() => applyColorTheme(colorTheme.class)}
                                         className={cn(
-                                            'relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all',
+                                            'relative flex flex-col items-center gap-2 py-3 rounded-lg border-2 transition-all',
                                             isSelected
-                                                ? 'border-primary bg-primary/5 shadow-md'
-                                                : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                                                ? 'border-primary'
+                                                : 'border-border hover:border-primary/40'
                                         )}
                                     >
-                                        <div className="flex gap-1">
+                                        <div className="flex">
                                             <div
-                                                className="w-6 h-6 rounded-full shadow-inner"
+                                                className="w-7 h-7 rounded-full ring-2 ring-background"
                                                 style={{ backgroundColor: colorTheme.primary }}
                                             />
                                             <div
-                                                className="w-6 h-6 rounded-full shadow-inner"
+                                                className="w-7 h-7 rounded-full -ml-2.5 ring-2 ring-background"
                                                 style={{ backgroundColor: colorTheme.accent }}
                                             />
                                         </div>
-                                        <span className="text-xs font-medium">{colorTheme.name}</span>
+                                        <span className={cn('font-mono text-[10px] uppercase tracking-wider', isSelected ? 'text-foreground font-semibold' : 'text-muted-foreground')}>
+                                            {colorTheme.name}
+                                        </span>
                                         {isSelected && (
-                                            <div className="absolute -top-1 -right-1 h-5 w-5 bg-primary rounded-full flex items-center justify-center">
-                                                <Check className="h-3 w-3 text-primary-foreground" />
+                                            <div className="absolute top-1.5 right-1.5 h-4 w-4 bg-primary rounded-full flex items-center justify-center">
+                                                <Check className="h-2.5 w-2.5 text-primary-foreground" />
                                             </div>
                                         )}
                                     </button>
@@ -238,33 +328,29 @@ const Profile = () => {
                             })}
                         </div>
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+            </section>
 
-            {/* Danger Zone */}
-            <Card className="border-destructive/50">
-                <CardHeader>
-                    <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
-                            <Trash2 className="h-5 w-5 text-destructive" />
-                        </div>
+            {/* ---------- Danger zone ---------- */}
+            <section>
+                <SectionLabel label="danger" />
+                <h2 className="text-xl font-bold tracking-tight mt-1 text-destructive">Burn it down</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">Irreversible. There's no recycle bin.</p>
+
+                <div className="mt-5 rounded-xl border border-destructive/40 bg-destructive/5 p-5 md:p-6">
+                    <div className="flex items-center justify-between flex-wrap gap-3">
                         <div>
-                            <CardTitle className="text-destructive">Danger Zone</CardTitle>
-                            <CardDescription>Irreversible actions for your account</CardDescription>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex items-center justify-between p-4 rounded-lg bg-destructive/5 border border-destructive/20">
-                        <div>
-                            <p className="font-medium">Delete Account</p>
-                            <p className="text-sm text-muted-foreground">
-                                Permanently delete your account and all data
+                            <p className="font-semibold">Delete account</p>
+                            <p className="text-sm text-muted-foreground mt-0.5">
+                                Wipes your profile and every application you've tracked.
                             </p>
                         </div>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button variant="destructive">Delete Account</Button>
+                                <Button variant="destructive" className="gap-2">
+                                    <Trash2 className="h-4 w-4" />
+                                    Delete account
+                                </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                                 <AlertDialogHeader>
@@ -290,8 +376,8 @@ const Profile = () => {
                             </AlertDialogContent>
                         </AlertDialog>
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+            </section>
         </div>
     )
 }

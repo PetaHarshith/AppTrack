@@ -9,10 +9,10 @@ import {
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { useRefineOptions } from "@refinedev/core";
-import { LogOutIcon, User } from "lucide-react";
+import { LogOutIcon } from "lucide-react";
 import { useSession, signOut } from "@/lib/auth-client";
 import { useNavigate } from "react-router";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { GenerativeAvatar } from "@/components/dataviz/GenerativeAvatar";
 
 export const Header = () => {
   const { isMobile } = useSidebar();
@@ -132,19 +132,22 @@ const UserDropdown = () => {
     navigate("/login");
   };
 
+  const identityKey = session.user.name || session.user.email || 'user';
+
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger>
-        <Avatar className="h-8 w-8 cursor-pointer">
-          <AvatarFallback className="bg-primary text-primary-foreground">
-            {session.user.name?.charAt(0).toUpperCase() || <User className="h-4 w-4" />}
-          </AvatarFallback>
-        </Avatar>
+      <DropdownMenuTrigger className="rounded-md ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+        <GenerativeAvatar name={identityKey} size={32} className="cursor-pointer" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuItem disabled className="flex flex-col items-start">
-          <span className="font-medium">{session.user.name}</span>
-          <span className="text-xs text-muted-foreground">{session.user.email}</span>
+      <DropdownMenuContent align="end" className="w-60">
+        <DropdownMenuItem disabled className="flex items-center gap-3 py-2">
+          <GenerativeAvatar name={identityKey} size={36} />
+          <div className="flex flex-col items-start min-w-0">
+            <span className="font-medium truncate w-full">{session.user.name}</span>
+            <span className="font-mono text-[10px] text-muted-foreground truncate w-full">
+              {session.user.email}
+            </span>
+          </div>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut}>

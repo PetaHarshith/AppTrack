@@ -26,6 +26,23 @@ A job application tracker built for students chasing their first big offer — a
 | Extension | Manifest V3 Chrome extension, vanilla JS + Shadow DOM widget |
 | Hosting | Vercel (frontend + backend as serverless), Neon (Postgres) |
 
+## Install the Chrome extension (for users)
+
+The extension auto-detects when you submit an application on LinkedIn, Workday, Greenhouse, Lever, Ashby, and other job sites — and offers to track it with one click.
+
+1. Download the extension folder: go to [github.com/PetaHarshith/AppTrack](https://github.com/PetaHarshith/AppTrack), navigate into `apptrack-extension/`, and click **Code → Download ZIP** at the repo root. (Or if you're a dev: `gh repo clone PetaHarshith/AppTrack`.)
+2. Unzip it somewhere permanent — `~/Documents`, not `~/Downloads`. If you delete the folder, the extension breaks.
+3. Open **`chrome://extensions`** in Chrome.
+4. Toggle **Developer mode** on (top right).
+5. Click **Load unpacked** → select the `apptrack-extension` folder.
+6. Pin the AppTrack icon to your toolbar (puzzle-piece menu → click the pin next to AppTrack).
+7. Sign in at **[apptrack.harshithpeta.com](https://apptrack.harshithpeta.com)** in the same Chrome window.
+8. Done. Apply to any job on LinkedIn / Workday / Greenhouse / Lever — the widget will pop up in the corner asking to track it.
+
+Works on any Chromium-based browser (Chrome, Edge, Brave, Arc).
+
+---
+
 ## Repo layout
 
 ```

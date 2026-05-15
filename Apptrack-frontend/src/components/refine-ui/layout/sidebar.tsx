@@ -10,11 +10,13 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent as ShadcnSidebarContent,
+  SidebarFooter as ShadcnSidebarFooter,
   SidebarHeader as ShadcnSidebarHeader,
   SidebarRail as ShadcnSidebarRail,
   SidebarTrigger as ShadcnSidebarTrigger,
@@ -27,32 +29,27 @@ import {
   useRefineOptions,
   type TreeMenuItem,
 } from "@refinedev/core";
-import { ChevronRight, ListIcon } from "lucide-react";
+import { ChevronRight, LogOut } from "lucide-react";
 import React from "react";
+import { useSession, signOut } from "@/lib/auth-client";
+import { useNavigate } from "react-router";
+import { GenerativeAvatar } from "@/components/dataviz/GenerativeAvatar";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Sidebar
+// ─────────────────────────────────────────────────────────────────────────────
 export function Sidebar() {
   const { open } = useShadcnSidebar();
   const { menuItems, selectedKey } = useMenu();
 
   return (
-    <ShadcnSidebar collapsible="icon" className={cn("border-none")}>
+    <ShadcnSidebar collapsible="icon" className="border-r border-border">
       <ShadcnSidebarRail />
       <SidebarHeader />
       <ShadcnSidebarContent
         className={cn(
-          "transition-discrete",
-          "duration-200",
-          "flex",
-          "flex-col",
-          "gap-2",
-          "pt-2",
-          "pb-2",
-          "border-r",
-          "border-border",
-          {
-            "px-3": open,
-            "px-1": !open,
-          }
+          "flex flex-col gap-0.5 pt-3 pb-2 transition-all duration-200",
+          open ? "px-2" : "px-1.5"
         )}
       >
         {menuItems.map((item: TreeMenuItem) => (
@@ -63,10 +60,14 @@ export function Sidebar() {
           />
         ))}
       </ShadcnSidebarContent>
+      <SidebarFooter />
     </ShadcnSidebar>
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Items
+// ─────────────────────────────────────────────────────────────────────────────
 type MenuItemProps = {
   item: TreeMenuItem;
   selectedKey?: string;
@@ -94,31 +95,17 @@ function SidebarItemGroup({ item, selectedKey }: MenuItemProps) {
   const { open } = useShadcnSidebar();
 
   return (
-    <div className={cn("border-t", "border-sidebar-border", "pt-4")}>
+    <div className="border-t border-sidebar-border pt-3 mt-2">
       <span
         className={cn(
-          "ml-3",
-          "block",
-          "text-xs",
-          "font-semibold",
-          "uppercase",
-          "text-muted-foreground",
-          "transition-all",
-          "duration-200",
-          {
-            "h-8": open,
-            "h-0": !open,
-            "opacity-0": !open,
-            "opacity-100": open,
-            "pointer-events-none": !open,
-            "pointer-events-auto": open,
-          }
+          "ml-3 block font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground transition-opacity duration-200",
+          open ? "opacity-100 h-6" : "opacity-0 h-0 pointer-events-none"
         )}
       >
-        {getDisplayName(item)}
+        // {getDisplayName(item)}
       </span>
       {children && children.length > 0 && (
-        <div className={cn("flex", "flex-col")}>
+        <div className="flex flex-col gap-0.5">
           {children.map((child: TreeMenuItem) => (
             <SidebarItem
               key={child.key || child.name}
@@ -136,25 +123,15 @@ function SidebarItemCollapsible({ item, selectedKey }: MenuItemProps) {
   const { name, children } = item;
 
   const chevronIcon = (
-    <ChevronRight
-      className={cn(
-        "h-4",
-        "w-4",
-        "shrink-0",
-        "text-muted-foreground",
-        "transition-transform",
-        "duration-200",
-        "group-data-[state=open]:rotate-90"
-      )}
-    />
+    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-90" />
   );
 
   return (
-    <Collapsible key={`collapsible-${name}`} className={cn("w-full", "group")}>
+    <Collapsible key={`collapsible-${name}`} className="w-full group">
       <CollapsibleTrigger asChild>
         <SidebarButton item={item} rightIcon={chevronIcon} />
       </CollapsibleTrigger>
-      <CollapsibleContent className={cn("ml-6", "flex", "flex-col", "gap-2")}>
+      <CollapsibleContent className="ml-5 flex flex-col gap-0.5 mt-0.5 border-l border-border pl-2">
         {children?.map((child: TreeMenuItem) => (
           <SidebarItem
             key={child.key || child.name}
@@ -205,10 +182,12 @@ function SidebarItemDropdown({ item, selectedKey }: MenuItemProps) {
 
 function SidebarItemLink({ item, selectedKey }: MenuItemProps) {
   const isSelected = item.key === selectedKey;
-
-  return <SidebarButton item={item} isSelected={isSelected} asLink={true} />;
+  return <SidebarButton item={item} isSelected={isSelected} asLink />;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Header (logo + collapse trigger)
+// ─────────────────────────────────────────────────────────────────────────────
 function SidebarHeader() {
   const { title } = useRefineOptions();
   const { open, isMobile } = useShadcnSidebar();
@@ -216,44 +195,20 @@ function SidebarHeader() {
   return (
     <ShadcnSidebarHeader
       className={cn(
-        "p-0",
-        "h-16",
-        "border-b",
-        "border-border",
-        "flex-row",
-        "items-center",
-        "justify-between",
-        "overflow-hidden"
+        "p-0 h-14 border-b border-sidebar-border flex-row items-center justify-between overflow-hidden"
       )}
     >
       <div
         className={cn(
-          "whitespace-nowrap",
-          "flex",
-          "flex-row",
-          "h-full",
-          "items-center",
-          "justify-start",
-          "gap-2",
-          "transition-discrete",
-          "duration-200",
-          {
-            "pl-3": !open,
-            "pl-5": open,
-          }
+          "whitespace-nowrap flex flex-row h-full items-center justify-start gap-2.5 transition-all duration-200",
+          open ? "pl-4" : "pl-3"
         )}
       >
-        <div>{title.icon}</div>
+        <div className="shrink-0">{title.icon}</div>
         <h2
           className={cn(
-            "text-sm",
-            "font-bold",
-            "transition-opacity",
-            "duration-200",
-            {
-              "opacity-0": !open,
-              "opacity-100": open,
-            }
+            "text-sm font-mono tracking-tight transition-opacity duration-200",
+            open ? "opacity-100" : "opacity-0"
           )}
         >
           {title.text}
@@ -261,17 +216,92 @@ function SidebarHeader() {
       </div>
 
       <ShadcnSidebarTrigger
-        className={cn("text-muted-foreground", "mr-1.5", {
-          "opacity-0": !open,
-          "opacity-100": open || isMobile,
-          "pointer-events-auto": open || isMobile,
-          "pointer-events-none": !open && !isMobile,
-        })}
+        className={cn(
+          "text-muted-foreground hover:text-foreground mr-2 h-7 w-7",
+          open || isMobile
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none"
+        )}
       />
     </ShadcnSidebarHeader>
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Footer (user account dropdown)
+// ─────────────────────────────────────────────────────────────────────────────
+function SidebarFooter() {
+  const { data: session } = useSession();
+  const { open } = useShadcnSidebar();
+  const navigate = useNavigate();
+
+  if (!session) return null;
+
+  const identityKey = session.user.name || session.user.email || "user";
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login");
+  };
+
+  return (
+    <ShadcnSidebarFooter className="p-0 border-t border-sidebar-border">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              "flex items-center gap-2.5 w-full text-left transition-colors hover:bg-accent/50",
+              "h-12",
+              open ? "px-3" : "px-2 justify-center"
+            )}
+          >
+            <GenerativeAvatar
+              name={identityKey}
+              size={28}
+              className="shrink-0"
+            />
+            <div
+              className={cn(
+                "flex flex-col min-w-0 transition-opacity duration-200",
+                open ? "opacity-100" : "opacity-0 w-0 pointer-events-none"
+              )}
+            >
+              <span className="text-xs font-medium truncate leading-tight">
+                {session.user.name}
+              </span>
+              <span className="font-mono text-[10px] text-muted-foreground truncate leading-tight">
+                {session.user.email}
+              </span>
+            </div>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="right" align="end" className="w-60">
+          <DropdownMenuItem disabled className="flex items-center gap-3 py-2">
+            <GenerativeAvatar name={identityKey} size={36} />
+            <div className="flex flex-col items-start min-w-0">
+              <span className="font-medium truncate w-full">
+                {session.user.name}
+              </span>
+              <span className="font-mono text-[10px] text-muted-foreground truncate w-full">
+                {session.user.email}
+              </span>
+            </div>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleSignOut}>
+            <LogOut className="text-destructive h-4 w-4" />
+            <span className="text-destructive">Sign out</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </ShadcnSidebarFooter>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
 function getDisplayName(item: TreeMenuItem) {
   return item.meta?.label ?? item.label ?? item.name;
 }
@@ -282,14 +312,15 @@ type IconProps = {
 };
 
 function ItemIcon({ icon, isSelected }: IconProps) {
+  if (!icon) return null;
   return (
     <div
-      className={cn("w-4", {
-        "text-muted-foreground": !isSelected,
-        "text-sidebar-primary-foreground": isSelected,
-      })}
+      className={cn(
+        "shrink-0 [&>svg]:h-4 [&>svg]:w-4 transition-colors",
+        isSelected ? "text-foreground" : "text-muted-foreground"
+      )}
     >
-      {icon ?? <ListIcon />}
+      {icon}
     </div>
   );
 }
@@ -312,21 +343,28 @@ function SidebarButton({
   ...props
 }: SidebarButtonProps) {
   const Link = useLink();
+  const { open } = useShadcnSidebar();
 
   const buttonContent = (
     <>
+      {/* Left accent bar — subtle, like Linear/Notion */}
+      <span
+        aria-hidden
+        className={cn(
+          "absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-r-full bg-primary transition-opacity duration-150",
+          isSelected ? "opacity-100" : "opacity-0"
+        )}
+      />
       <ItemIcon icon={item.meta?.icon ?? item.icon} isSelected={isSelected} />
       <span
-        className={cn("tracking-[-0.00875rem]", {
-          "flex-1": rightIcon,
-          "text-left": rightIcon,
-          "line-clamp-1": !rightIcon,
-          truncate: !rightIcon,
-          "font-normal": !isSelected,
-          "font-semibold": isSelected,
-          "text-sidebar-primary-foreground": isSelected,
-          "text-foreground": !isSelected,
-        })}
+        className={cn(
+          "tracking-[-0.005em] text-[13px] transition-opacity duration-200",
+          rightIcon ? "flex-1 text-left" : "truncate",
+          isSelected
+            ? "font-semibold text-foreground"
+            : "font-normal text-muted-foreground group-hover:text-foreground",
+          !open && "opacity-0 w-0"
+        )}
       >
         {getDisplayName(item)}
       </span>
@@ -338,22 +376,22 @@ function SidebarButton({
     <Button
       asChild={!!(asLink && item.route)}
       variant="ghost"
-      size="lg"
+      size="sm"
       className={cn(
-        "flex w-full items-center justify-start gap-2 py-2 !px-3 text-sm",
-        {
-          "bg-sidebar-primary": isSelected,
-          "hover:!bg-sidebar-primary/90": isSelected,
-          "text-sidebar-primary-foreground": isSelected,
-          "hover:text-sidebar-primary-foreground": isSelected,
-        },
+        "group relative flex w-full items-center justify-start gap-2.5 h-9 !px-3 rounded-md transition-colors",
+        isSelected
+          ? "bg-accent hover:bg-accent text-foreground"
+          : "hover:bg-accent/50 text-muted-foreground hover:text-foreground",
         className
       )}
       onClick={onClick}
       {...props}
     >
       {asLink && item.route ? (
-        <Link to={item.route} className={cn("flex w-full items-center gap-2")}>
+        <Link
+          to={item.route}
+          className="flex w-full items-center gap-2.5 relative"
+        >
           {buttonContent}
         </Link>
       ) : (

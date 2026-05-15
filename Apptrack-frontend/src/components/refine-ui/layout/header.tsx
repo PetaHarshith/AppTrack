@@ -1,18 +1,7 @@
 import { ThemeToggle } from "@/components/refine-ui/theme/theme-toggle";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { useRefineOptions } from "@refinedev/core";
-import { LogOutIcon } from "lucide-react";
-import { useSession, signOut } from "@/lib/auth-client";
-import { useNavigate } from "react-router";
-import { GenerativeAvatar } from "@/components/dataviz/GenerativeAvatar";
 
 export const Header = () => {
   const { isMobile } = useSidebar();
@@ -40,7 +29,6 @@ function DesktopHeader() {
       )}
     >
       <ThemeToggle />
-      <UserDropdown />
     </header>
   );
 }
@@ -113,51 +101,10 @@ function MobileHeader() {
 
       <div className="flex items-center gap-2">
         <ThemeToggle className={cn("h-8", "w-8")} />
-        <UserDropdown />
       </div>
     </header>
   );
 }
-
-const UserDropdown = () => {
-  const { data: session } = useSession();
-  const navigate = useNavigate();
-
-  if (!session) {
-    return null;
-  }
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/login");
-  };
-
-  const identityKey = session.user.name || session.user.email || 'user';
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className="rounded-md ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-        <GenerativeAvatar name={identityKey} size={32} className="cursor-pointer" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-60">
-        <DropdownMenuItem disabled className="flex items-center gap-3 py-2">
-          <GenerativeAvatar name={identityKey} size={36} />
-          <div className="flex flex-col items-start min-w-0">
-            <span className="font-medium truncate w-full">{session.user.name}</span>
-            <span className="font-mono text-[10px] text-muted-foreground truncate w-full">
-              {session.user.email}
-            </span>
-          </div>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleSignOut}>
-          <LogOutIcon className={cn("text-destructive")} />
-          <span className={cn("text-destructive")}>Sign Out</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-};
 
 Header.displayName = "Header";
 MobileHeader.displayName = "MobileHeader";

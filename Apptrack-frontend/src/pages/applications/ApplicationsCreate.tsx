@@ -3,16 +3,15 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router';
-import gsap from 'gsap';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { APPLICATION_STATUSES } from '@/constants';
-import { Loader2, Briefcase, Building2, Calendar, Link2, FileText, ArrowLeft, Send, Sparkles, DollarSign, MapPin, Globe, ShieldAlert, Star } from 'lucide-react';
+import { Breadcrumb } from '@/components/refine-ui/layout/breadcrumb';
+import { APPLICATION_STATUSES, statusColors, statusIcons } from '@/constants';
+import { Loader2, ArrowLeft, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { WORK_TYPE_OPTIONS, PRIORITY_OPTIONS, API_URL } from '@/constants';
+import { cn } from '@/lib/utils';
 
 const optionalDate = z.union([
     z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
@@ -22,8 +21,6 @@ const optionalDate = z.union([
 ]).optional();
 const optionalText = z.union([z.string(), z.literal(''), z.null(), z.undefined()]).optional();
 
-// Zod schema matching backend validation
-// NOTE: userId is NOT included - backend uses authenticated user's ID
 const createApplicationSchema = z.object({
     company: z.string().trim().min(1, 'Company name is required').max(120, 'Company name too long'),
     position: z.string().trim().min(1, 'Position is required').max(150, 'Position too long'),
@@ -42,21 +39,82 @@ const createApplicationSchema = z.object({
 
 type CreateApplicationFormData = z.infer<typeof createApplicationSchema>;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Section header — mono small-caps, matches list page's `// applications`
+// ─────────────────────────────────────────────────────────────────────────────
+const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+    <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        // {children}
+    </p>
+);
+
+const FieldLabel = ({ htmlFor, children, required }: { htmlFor?: string; children: React.ReactNode; required?: boolean }) => (
+    <label htmlFor={htmlFor} className="text-xs font-medium text-foreground mb-1.5 block">
+        {children}
+        {required && <span className="text-destructive ml-0.5">*</span>}
+    </label>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Chip group — used for status / work type / priority
+// ─────────────────────────────────────────────────────────────────────────────
+type ChipOption = { value: string; label: string };
+type ChipGroupProps = {
+    options: ChipOption[];
+    value: string | undefined;
+    onChange: (v: string) => void;
+    colorFor?: (v: string) => string | undefined;
+    iconFor?: (v: string) => React.ReactNode;
+    clearable?: boolean;
+};
+
+const ChipGroup = ({ options, value, onChange, colorFor, iconFor, clearable }: ChipGroupProps) => (
+    <div className="flex flex-wrap gap-1.5">
+        {options.map((o) => {
+            const selected = value === o.value;
+            const color = colorFor?.(o.value);
+            return (
+                <button
+                    key={o.value}
+                    type="button"
+                    onClick={() => onChange(selected && clearable ? '' : o.value)}
+                    style={
+                        selected && color
+                            ? { borderColor: color, color, backgroundColor: `color-mix(in srgb, ${color} 10%, transparent)` }
+                            : undefined
+                    }
+                    className={cn(
+                        'inline-flex items-center gap-1.5 h-8 px-3 rounded-md border text-xs font-mono transition-colors',
+                        selected
+                            ? color
+                                ? ''
+                                : 'bg-foreground text-background border-foreground'
+                            : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+                    )}
+                >
+                    {iconFor?.(o.value)}
+                    {o.label}
+                </button>
+            );
+        })}
+    </div>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Page
+// ─────────────────────────────────────────────────────────────────────────────
 const ApplicationsCreate = () => {
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [importUrl, setImportUrl] = useState('');
     const [isImporting, setIsImporting] = useState(false);
-    const [showDetails, setShowDetails] = useState(false);
-    const containerRef = useRef<HTMLDivElement>(null);
-    const cardRef = useRef<HTMLDivElement>(null);
-    const headerRef = useRef<HTMLDivElement>(null);
+    const [showMore, setShowMore] = useState(false);
     const importInputRef = useRef<HTMLInputElement>(null);
 
-    // Deep link from command palette: focus the import field when arriving with #import
+    // Deep link from command palette
     useEffect(() => {
         if (window.location.hash === '#import') {
-            setTimeout(() => importInputRef.current?.focus(), 300);
+            setTimeout(() => importInputRef.current?.focus(), 100);
         }
     }, []);
 
@@ -111,7 +169,7 @@ const ApplicationsCreate = () => {
             if (d.workType) setValue('workType', d.workType);
             if (d.jobUrl) setValue('jobUrl', d.jobUrl);
             toast.success(`Imported from ${d.source}`);
-            setShowDetails(true);
+            setShowMore(true);
         } catch {
             toast.error("Couldn't reach import service");
         } finally {
@@ -119,43 +177,8 @@ const ApplicationsCreate = () => {
         }
     };
 
-    // Smooth entrance animation
-    useEffect(() => {
-        const ctx = gsap.context(() => {
-            // Background gradient animation
-            gsap.to(containerRef.current, {
-                backgroundPosition: '100% 50%',
-                duration: 8,
-                ease: 'none',
-                repeat: -1,
-                yoyo: true,
-            });
-
-            // Card entrance
-            gsap.fromTo(cardRef.current,
-                { opacity: 0, y: 40, scale: 0.95 },
-                { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: 'power3.out' }
-            );
-
-            // Header slide in
-            gsap.fromTo(headerRef.current,
-                { opacity: 0, x: -20 },
-                { opacity: 1, x: 0, duration: 0.5, delay: 0.2, ease: 'power2.out' }
-            );
-
-            // Form fields stagger
-            gsap.fromTo('.form-field',
-                { opacity: 0, y: 15 },
-                { opacity: 1, y: 0, duration: 0.4, stagger: 0.08, delay: 0.3, ease: 'power2.out' }
-            );
-        });
-
-        return () => ctx.revert();
-    }, []);
-
     const onSubmit = async (data: CreateApplicationFormData) => {
         setIsSubmitting(true);
-
         try {
             const response = await fetch(`${API_URL}/applications`, {
                 method: 'POST',
@@ -163,352 +186,320 @@ const ApplicationsCreate = () => {
                 credentials: 'include',
                 body: JSON.stringify(data),
             });
-
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || 'Failed to create application');
             }
-
             await response.json();
-
-            // Success animation
-            gsap.to(cardRef.current, {
-                scale: 0.98,
-                opacity: 0,
-                y: -20,
-                duration: 0.3,
-                ease: 'power2.in',
-                onComplete: () => {
-                    toast.success('Application added successfully!');
-                    navigate('/applications');
-                },
-            });
+            toast.success('Application added');
+            navigate('/applications');
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Failed to create application');
-            // Shake animation
-            gsap.fromTo(cardRef.current,
-                { x: -8 },
-                { x: 8, duration: 0.08, repeat: 4, yoyo: true, ease: 'power2.inOut' }
-            );
         } finally {
             setIsSubmitting(false);
         }
     };
 
     const onError = (formErrors: typeof errors) => {
-        // Build a user-friendly list of missing/invalid fields
-        const errorMessages: string[] = [];
-
-        if (formErrors.company) {
-            errorMessages.push('Company name is required');
-        }
-        if (formErrors.position) {
-            errorMessages.push('Position is required');
-        }
-        if (formErrors.dateApplied) {
-            errorMessages.push('Invalid date format');
-        }
-
-        // Show specific error or generic message
-        if (errorMessages.length === 1) {
-            toast.error(errorMessages[0]);
-        } else if (errorMessages.length > 1) {
-            toast.error(`Please fix: ${errorMessages.join(', ')}`);
-        } else {
-            toast.error('Please fill in all required fields');
-        }
-
-        gsap.fromTo(cardRef.current,
-            { x: -5 },
-            { x: 5, duration: 0.08, repeat: 3, yoyo: true, ease: 'power2.inOut' }
-        );
+        const messages: string[] = [];
+        if (formErrors.company) messages.push('Company name is required');
+        if (formErrors.position) messages.push('Position is required');
+        if (formErrors.dateApplied) messages.push('Invalid date format');
+        if (messages.length === 1) toast.error(messages[0]);
+        else if (messages.length > 1) toast.error(`Please fix: ${messages.join(', ')}`);
+        else toast.error('Please fill in all required fields');
     };
 
-    return (
-        <div
-            ref={containerRef}
-            className="min-h-screen p-4 md:p-8"
-            style={{
-                background: 'linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--muted)) 50%, hsl(var(--background)) 100%)',
-                backgroundSize: '200% 200%',
-            }}
-        >
-            {/* Header */}
-            <div ref={headerRef} className="max-w-2xl mx-auto mb-6">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigate('/applications')}
-                    className="mb-4 -ml-2 text-muted-foreground hover:text-foreground"
-                >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Applications
-                </Button>
-                <h1 className="text-2xl font-bold text-foreground">Track New Application</h1>
-                <p className="text-muted-foreground text-sm mt-1">
-                    <span className="text-destructive">*</span> indicates required fields
-                </p>
-            </div>
+    // ⌘↵ / Ctrl+↵ to submit from anywhere on the page
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                e.preventDefault();
+                handleSubmit(onSubmit, onError)();
+            }
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, [handleSubmit]);
 
-            {/* Main Card */}
-            <div
-                ref={cardRef}
-                className="max-w-2xl mx-auto bg-card border border-border rounded-2xl shadow-xl overflow-hidden"
-            >
-                <form onSubmit={handleSubmit(onSubmit, onError)}>
-                    {/* Smart Import */}
-                    <div className="form-field px-6 pt-6">
-                        <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-3">
-                            <div className="flex items-center gap-2 mb-2">
-                                <Sparkles className="w-4 h-4 text-primary" />
-                                <span className="text-sm font-medium">Smart Import</span>
-                                <span className="text-xs text-muted-foreground">Greenhouse, Lever, Ashby & most ATS pages</span>
-                            </div>
-                            <div className="flex gap-2">
-                                <Input
-                                    ref={importInputRef}
-                                    value={importUrl}
-                                    onChange={(e) => setImportUrl(e.target.value)}
-                                    placeholder="https://boards.greenhouse.io/..."
-                                    className="h-9 font-mono text-sm"
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            handleImportUrl();
-                                        }
-                                    }}
-                                />
-                                <Button
-                                    type="button"
-                                    onClick={handleImportUrl}
-                                    disabled={isImporting}
-                                    size="sm"
-                                    className="h-9"
-                                >
-                                    {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Import'}
-                                </Button>
-                            </div>
+    const inputCls = 'h-10 font-mono text-sm';
+    const errorCls = (hasError: boolean) =>
+        hasError ? 'border-destructive focus-visible:ring-destructive' : '';
+
+    return (
+        <div className="max-w-3xl mx-auto px-6 pt-6 pb-32">
+            <Breadcrumb />
+
+            {/* ── Hero ─────────────────────────────────────────────────── */}
+            <header className="mt-4 mb-8">
+                <button
+                    type="button"
+                    onClick={() => navigate('/applications')}
+                    className="inline-flex items-center gap-1.5 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors mb-3"
+                >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    back to applications
+                </button>
+                <SectionLabel>new application</SectionLabel>
+                <h1 className="text-4xl font-bold tracking-tight mt-1">New application</h1>
+                <p className="text-sm text-muted-foreground mt-1.5">
+                    Paste a job URL to auto-fill, or fill it in manually below.
+                </p>
+            </header>
+
+            {/* ── Smart import (hero affordance, not a banner) ────────── */}
+            <section className="mb-10 border-y border-border py-5">
+                <div className="flex items-center justify-between mb-2.5">
+                    <SectionLabel>smart import</SectionLabel>
+                    <span className="font-mono text-[10px] text-muted-foreground">
+                        greenhouse · lever · ashby · most ats
+                    </span>
+                </div>
+                <div className="flex gap-2">
+                    <Input
+                        ref={importInputRef}
+                        value={importUrl}
+                        onChange={(e) => setImportUrl(e.target.value)}
+                        placeholder="https://boards.greenhouse.io/..."
+                        className="h-11 font-mono text-sm"
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleImportUrl();
+                            }
+                        }}
+                    />
+                    <Button
+                        type="button"
+                        onClick={handleImportUrl}
+                        disabled={isImporting}
+                        variant="outline"
+                        className="h-11 px-5 font-mono text-xs gap-2"
+                    >
+                        {isImporting ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                            <>
+                                Import
+                                <kbd className="font-mono text-[10px] px-1.5 py-0.5 rounded border border-border bg-muted/50">↵</kbd>
+                            </>
+                        )}
+                    </Button>
+                </div>
+            </section>
+
+            {/* ── Form ─────────────────────────────────────────────────── */}
+            <form onSubmit={handleSubmit(onSubmit, onError)}>
+                {/* Basics */}
+                <section className="mb-10">
+                    <SectionLabel>basics</SectionLabel>
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <FieldLabel htmlFor="company" required>Company</FieldLabel>
+                            <Input
+                                id="company"
+                                {...register('company')}
+                                placeholder="Google"
+                                className={cn(inputCls, errorCls(!!errors.company))}
+                            />
+                            {errors.company && (
+                                <p className="text-xs text-destructive mt-1">{errors.company.message}</p>
+                            )}
+                        </div>
+                        <div>
+                            <FieldLabel htmlFor="position" required>Position</FieldLabel>
+                            <Input
+                                id="position"
+                                {...register('position')}
+                                placeholder="Software Engineer"
+                                className={cn(inputCls, errorCls(!!errors.position))}
+                            />
+                            {errors.position && (
+                                <p className="text-xs text-destructive mt-1">{errors.position.message}</p>
+                            )}
                         </div>
                     </div>
 
-                    {/* Form Content */}
-                    <div className="p-6 space-y-5">
-                        {/* Row 1: Company & Position */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="form-field space-y-1.5">
-                                <Label htmlFor="company" className="flex items-center gap-2 text-sm font-medium">
-                                    <Building2 className="w-4 h-4 text-muted-foreground" />
-                                    Company <span className="text-destructive">*</span>
-                                </Label>
-                                <Input
-                                    id="company"
-                                    {...register('company')}
-                                    placeholder="Google, Meta, etc."
-                                    className={`h-10 ${errors.company ? 'border-destructive ring-1 ring-destructive' : ''}`}
-                                />
-                                {errors.company && (
-                                    <p className="text-xs text-destructive">{errors.company.message}</p>
-                                )}
-                            </div>
+                    <div className="mt-5">
+                        <FieldLabel>Status</FieldLabel>
+                        <ChipGroup
+                            options={APPLICATION_STATUSES.map((s) => ({ value: s, label: s }))}
+                            value={watchedStatus}
+                            onChange={(v) => setValue('status', v as CreateApplicationFormData['status'])}
+                            colorFor={(v) => statusColors[v as keyof typeof statusColors]}
+                            iconFor={(v) => statusIcons[v as keyof typeof statusIcons]}
+                        />
+                    </div>
 
-                            <div className="form-field space-y-1.5">
-                                <Label htmlFor="position" className="flex items-center gap-2 text-sm font-medium">
-                                    <Briefcase className="w-4 h-4 text-muted-foreground" />
-                                    Position <span className="text-destructive">*</span>
-                                </Label>
-                                <Input
-                                    id="position"
-                                    {...register('position')}
-                                    placeholder="Software Engineer"
-                                    className={`h-10 ${errors.position ? 'border-destructive ring-1 ring-destructive' : ''}`}
-                                />
-                                {errors.position && (
-                                    <p className="text-xs text-destructive">{errors.position.message}</p>
-                                )}
-                            </div>
+                    <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <FieldLabel htmlFor="dateApplied">Date applied</FieldLabel>
+                            <Input
+                                id="dateApplied"
+                                type="date"
+                                {...register('dateApplied')}
+                                className={inputCls}
+                            />
                         </div>
-
-                        {/* Row 2: Status & Date */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="form-field space-y-1.5">
-                                <Label className="text-sm font-medium">Status</Label>
-                                <Select
-                                    value={watchedStatus}
-                                    onValueChange={(value) => setValue('status', value as any)}
-                                >
-                                    <SelectTrigger className="h-10">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {APPLICATION_STATUSES.map((status) => (
-                                            <SelectItem key={status} value={status}>
-                                                {status}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="form-field space-y-1.5">
-                                <Label htmlFor="dateApplied" className="flex items-center gap-2 text-sm font-medium">
-                                    <Calendar className="w-4 h-4 text-muted-foreground" />
-                                    Date Applied
-                                </Label>
-                                <Input
-                                    id="dateApplied"
-                                    type="date"
-                                    {...register('dateApplied')}
-                                    className="h-10"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Row 3: Job URL */}
-                        <div className="form-field space-y-1.5">
-                            <Label htmlFor="jobUrl" className="flex items-center gap-2 text-sm font-medium">
-                                <Link2 className="w-4 h-4 text-muted-foreground" />
-                                Job Posting URL
-                            </Label>
+                        <div>
+                            <FieldLabel htmlFor="jobUrl">Job posting URL</FieldLabel>
                             <Input
                                 id="jobUrl"
                                 type="url"
                                 {...register('jobUrl')}
-                                placeholder="https://careers.company.com/job/..."
-                                className="h-10"
+                                placeholder="https://careers.company.com/..."
+                                className={inputCls}
                             />
                         </div>
+                    </div>
+                </section>
 
-                        {/* Row 4: Notes */}
-                        <div className="form-field space-y-1.5">
-                            <Label htmlFor="notes" className="flex items-center gap-2 text-sm font-medium">
-                                <FileText className="w-4 h-4 text-muted-foreground" />
-                                Notes
-                            </Label>
-                            <Textarea
-                                id="notes"
-                                {...register('notes')}
-                                placeholder="Referral contact, interview prep notes, etc."
-                                rows={2}
-                                className="resize-none"
-                            />
-                        </div>
+                {/* Notes */}
+                <section className="mb-10 border-t border-border pt-8">
+                    <SectionLabel>notes</SectionLabel>
+                    <div className="mt-4">
+                        <Textarea
+                            {...register('notes')}
+                            placeholder="Referral contact, prep notes, recruiter name…"
+                            rows={3}
+                            className="font-mono text-sm resize-none"
+                        />
+                    </div>
+                </section>
 
-                        {/* Details toggle */}
-                        <button
-                            type="button"
-                            onClick={() => setShowDetails((s) => !s)}
-                            className="text-sm text-primary hover:underline"
-                        >
-                            {showDetails ? '− Hide additional details' : '+ Add more details (location, salary, type, deadlines)'}
-                        </button>
+                {/* More fields — progressive disclosure */}
+                <section className="mb-10 border-t border-border pt-6">
+                    <button
+                        type="button"
+                        onClick={() => setShowMore((s) => !s)}
+                        className="inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                        <ChevronDown
+                            className={cn(
+                                'w-3.5 h-3.5 transition-transform',
+                                showMore && 'rotate-180'
+                            )}
+                        />
+                        {showMore ? '// hide more fields' : '// more fields (location, salary, type, priority, deadlines)'}
+                    </button>
 
-                        {showDetails && (
-                            <div className="space-y-4 pt-2 border-t border-dashed">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="form-field space-y-1.5">
-                                        <Label htmlFor="location" className="flex items-center gap-2 text-sm font-medium">
-                                            <MapPin className="w-4 h-4 text-muted-foreground" /> Location
-                                        </Label>
-                                        <Input id="location" {...register('location')} placeholder="San Francisco, CA" className="h-10" />
-                                    </div>
-                                    <div className="form-field space-y-1.5">
-                                        <Label htmlFor="salary" className="flex items-center gap-2 text-sm font-medium">
-                                            <DollarSign className="w-4 h-4 text-muted-foreground" /> Salary
-                                        </Label>
-                                        <Input id="salary" {...register('salary')} placeholder="$120k–$150k" className="h-10" />
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="form-field space-y-1.5">
-                                        <Label className="flex items-center gap-2 text-sm font-medium">
-                                            <Globe className="w-4 h-4 text-muted-foreground" /> Work Type
-                                        </Label>
-                                        <Select
-                                            value={watchedWorkType || ''}
-                                            onValueChange={(v) => setValue('workType', v as any)}
-                                        >
-                                            <SelectTrigger className="h-10"><SelectValue placeholder="Pick a type" /></SelectTrigger>
-                                            <SelectContent>
-                                                {WORK_TYPE_OPTIONS.map(o => (
-                                                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="form-field space-y-1.5">
-                                        <Label className="flex items-center gap-2 text-sm font-medium">
-                                            <Star className="w-4 h-4 text-muted-foreground" /> Priority
-                                        </Label>
-                                        <Select
-                                            value={watchedPriority || ''}
-                                            onValueChange={(v) => setValue('priority', v as any)}
-                                        >
-                                            <SelectTrigger className="h-10"><SelectValue placeholder="Pick a tier" /></SelectTrigger>
-                                            <SelectContent>
-                                                {PRIORITY_OPTIONS.map(o => (
-                                                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="form-field space-y-1.5">
-                                        <Label htmlFor="oaDeadline" className="flex items-center gap-2 text-sm font-medium">
-                                            <Calendar className="w-4 h-4 text-muted-foreground" /> OA Deadline
-                                        </Label>
-                                        <Input id="oaDeadline" type="date" {...register('oaDeadline')} className="h-10" />
-                                    </div>
-                                    <div className="form-field space-y-1.5">
-                                        <Label htmlFor="interviewDate" className="flex items-center gap-2 text-sm font-medium">
-                                            <Calendar className="w-4 h-4 text-muted-foreground" /> Interview Date
-                                        </Label>
-                                        <Input id="interviewDate" type="date" {...register('interviewDate')} className="h-10" />
-                                    </div>
-                                </div>
-                                <div className="form-field flex items-center gap-3 p-3 rounded-md bg-muted/30">
-                                    <input
-                                        id="requiresSponsorship"
-                                        type="checkbox"
-                                        checked={watchedSponsorship === true}
-                                        onChange={(e) => setValue('requiresSponsorship', e.target.checked)}
-                                        className="h-4 w-4"
+                    {showMore && (
+                        <div className="mt-6 space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <FieldLabel htmlFor="location">Location</FieldLabel>
+                                    <Input
+                                        id="location"
+                                        {...register('location')}
+                                        placeholder="San Francisco, CA"
+                                        className={inputCls}
                                     />
-                                    <Label htmlFor="requiresSponsorship" className="flex items-center gap-2 cursor-pointer text-sm">
-                                        <ShieldAlert className="w-4 h-4 text-muted-foreground" />
-                                        I need visa sponsorship for this role
-                                    </Label>
+                                </div>
+                                <div>
+                                    <FieldLabel htmlFor="salary">Salary</FieldLabel>
+                                    <Input
+                                        id="salary"
+                                        {...register('salary')}
+                                        placeholder="$120k – $150k"
+                                        className={inputCls}
+                                    />
                                 </div>
                             </div>
-                        )}
-                    </div>
 
-                    {/* Footer / Actions */}
-                    <div className="px-6 py-4 bg-muted/30 border-t border-border flex items-center justify-end gap-3">
+                            <div>
+                                <FieldLabel>Work type</FieldLabel>
+                                <ChipGroup
+                                    options={WORK_TYPE_OPTIONS}
+                                    value={watchedWorkType || ''}
+                                    onChange={(v) => setValue('workType', v as CreateApplicationFormData['workType'])}
+                                    clearable
+                                />
+                            </div>
+
+                            <div>
+                                <FieldLabel>Priority</FieldLabel>
+                                <ChipGroup
+                                    options={PRIORITY_OPTIONS}
+                                    value={watchedPriority || ''}
+                                    onChange={(v) => setValue('priority', v as CreateApplicationFormData['priority'])}
+                                    clearable
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <FieldLabel htmlFor="oaDeadline">OA deadline</FieldLabel>
+                                    <Input
+                                        id="oaDeadline"
+                                        type="date"
+                                        {...register('oaDeadline')}
+                                        className={inputCls}
+                                    />
+                                </div>
+                                <div>
+                                    <FieldLabel htmlFor="interviewDate">Interview date</FieldLabel>
+                                    <Input
+                                        id="interviewDate"
+                                        type="date"
+                                        {...register('interviewDate')}
+                                        className={inputCls}
+                                    />
+                                </div>
+                            </div>
+
+                            <label
+                                htmlFor="requiresSponsorship"
+                                className="flex items-center gap-2.5 cursor-pointer select-none"
+                            >
+                                <input
+                                    id="requiresSponsorship"
+                                    type="checkbox"
+                                    checked={watchedSponsorship === true}
+                                    onChange={(e) => setValue('requiresSponsorship', e.target.checked)}
+                                    className="h-4 w-4 accent-foreground"
+                                />
+                                <span className="text-sm">I need visa sponsorship for this role</span>
+                            </label>
+                        </div>
+                    )}
+                </section>
+            </form>
+
+            {/* ── Sticky action bar ───────────────────────────────────── */}
+            <div className="fixed bottom-0 left-0 right-0 md:left-[var(--sidebar-width,16rem)] border-t border-border bg-background/95 backdrop-blur z-30">
+                <div className="max-w-3xl mx-auto px-6 py-3 flex items-center justify-between">
+                    <span className="font-mono text-[10px] text-muted-foreground hidden sm:inline">
+                        <span className="text-destructive">*</span> required
+                    </span>
+                    <div className="flex items-center gap-2 ml-auto">
                         <Button
                             type="button"
                             variant="ghost"
                             onClick={() => navigate('/applications')}
                             disabled={isSubmitting}
+                            className="h-9 font-mono text-xs"
                         >
                             Cancel
                         </Button>
                         <Button
-                            type="submit"
+                            type="button"
+                            onClick={handleSubmit(onSubmit, onError)}
                             disabled={isSubmitting}
-                            className="min-w-[140px]"
+                            className="h-9 font-mono text-xs gap-2 min-w-[170px]"
                         >
                             {isSubmitting ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
                                 <>
-                                    <Send className="w-4 h-4 mr-2" />
-                                    Add Application
+                                    Create application
+                                    <kbd className="font-mono text-[10px] px-1.5 py-0.5 rounded border border-foreground/20 bg-background/20">
+                                        ⌘↵
+                                    </kbd>
                                 </>
                             )}
                         </Button>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     );

@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
-    Flame,
     ArrowRight,
     Pencil,
     Plus,
@@ -14,11 +13,9 @@ import {
 import { API_URL, statusColors } from '@/constants'
 import type { ApplicationStatus } from '@/types'
 import { toast } from 'sonner'
-import { PipelineFlow } from '@/components/dataviz/PipelineFlow'
 import { ActivityHeatmap } from '@/components/dataviz/ActivityHeatmap'
-import { Sparkline } from '@/components/dataviz/Sparkline'
-import { StatusBanner, type StatusFact } from '@/components/dataviz/StatusBanner'
 import { DashboardSkeleton } from '@/components/dataviz/Skeleton'
+import { cn } from '@/lib/utils'
 
 type StatsData = {
     total: number;
@@ -42,11 +39,13 @@ type StatsData = {
     dailyActivity: Array<{ date: string; count: number }>;
 }
 
-const pipelineStages: { key: ApplicationStatus; label: string; short: string }[] = [
-    { key: 'Applied', label: 'Applied', short: 'APL' },
-    { key: 'OA', label: 'OA', short: 'OA' },
-    { key: 'Interview', label: 'Interview', short: 'INT' },
-    { key: 'Offer', label: 'Offer', short: 'OFR' },
+// Pipeline stages — always rendered in this order so the grid is visually
+// stable even when some statuses are at zero.
+const pipelineStages: { key: ApplicationStatus; label: string }[] = [
+    { key: 'Applied', label: 'Applied' },
+    { key: 'OA', label: 'OA' },
+    { key: 'Interview', label: 'Interview' },
+    { key: 'Offer', label: 'Offer' },
 ];
 
 const SectionLabel = ({ label }: { label: string }) => (
@@ -168,47 +167,33 @@ const Dashboard = () => {
     const offerCount = stats.statusCounts['Offer'] || 0;
     const weeklyMax = Math.max(...stats.weeklyStreak.weeks.map(w => w.count), stats.weeklyStreak.goal, 1);
 
-    // Pipeline data
-    const pipelineCounts = pipelineStages.map(s => {
-        const f = stats.funnel.find(x => x.stage === s.key);
-        return { ...s, count: f?.count ?? 0, conv: f?.conversionFromPrev ?? 100 };
-    });
-
-    // Today summary for the status banner
+    // Today summary used by the hero one-liner
     const todayStr = new Date().toISOString().slice(0, 10);
     const todayInterviews = (stats.upcomingDeadlines || []).filter(d => d.type === 'Interview' && d.date === todayStr).length;
     const todayOAs = (stats.upcomingDeadlines || []).filter(d => d.type === 'OA Deadline' && d.date === todayStr).length;
     const overdueFollowups = (stats.followUpCandidates || []).length;
 
-    const facts: StatusFact[] = [];
-    if (todayInterviews > 0) facts.push({ label: `${todayInterviews} interview${todayInterviews > 1 ? 's' : ''} today`, tone: 'warn', to: '/calendar' });
-    if (todayOAs > 0) facts.push({ label: `${todayOAs} OA due today`, tone: 'danger', to: '/calendar' });
-    facts.push({
-        label: `${stats.weeklyStreak.currentWeekCount} this week`,
-        tone: stats.weeklyStreak.currentWeekCount >= stats.weeklyStreak.goal ? 'success' : 'normal',
-    });
-    if (overdueFollowups > 0) facts.push({ label: `${overdueFollowups} follow-up${overdueFollowups > 1 ? 's' : ''} overdue`, tone: 'warn' });
-    if (offerCount > 0) facts.push({ label: `${offerCount} live offer${offerCount > 1 ? 's' : ''}`, tone: 'success', to: '/applications' });
+    const activeCount = (stats.statusCounts['Applied'] || 0)
+        + (stats.statusCounts['OA'] || 0)
+        + (stats.statusCounts['Interview'] || 0);
+    const rejectedCount = stats.statusCounts['Rejected'] || 0;
+    const withdrawnCount = stats.statusCounts['Withdrawn'] || 0;
 
-    // Sparkline data: derive cumulative totals over the 8 weekly buckets
-    const weeklyCounts = stats.weeklyStreak.weeks.map(w => w.count);
-    let runningTotal = stats.total - weeklyCounts.reduce((s, c) => s + c, 0);
-    const cumulativeTotals = weeklyCounts.map(c => (runningTotal += c));
-    const weeklyPending = weeklyCounts; // approximation — visualize cadence as pending proxy
-
-    // Personality summary line
+    // Hero one-liner: tells you the single most relevant thing today.
     const summary = (() => {
-        if (stats.total === 0) return "Let's get your first application in. ";
-        if (offerCount > 0) return `${offerCount} offer${offerCount > 1 ? 's' : ''} on the table. Don't blow it.`;
+        if (stats.total === 0) return "No applications yet. Track your first to see things light up.";
+        if (todayInterviews > 0) return `Interview${todayInterviews > 1 ? 's' : ''} on the calendar today. Show up sharp.`;
+        if (todayOAs > 0) return `OA${todayOAs > 1 ? 's' : ''} due today. Don't let it slip.`;
+        if (offerCount > 0) return `${offerCount} live offer${offerCount > 1 ? 's' : ''}. ${activeCount > 0 ? `${activeCount} still in motion.` : 'Decide thoughtfully.'}`;
         if (overdueFollowups >= 3) return `${overdueFollowups} applications have gone quiet. Time to nudge.`;
-        if (pendingCount > 0) return `${stats.total} tracked. ${pendingCount} in motion.`;
+        if (activeCount > 0) return `${stats.total} tracked · ${activeCount} active.`;
         return `${stats.total} tracked. Keep planting seeds.`;
     })();
 
     return (
-        <div className="p-4 md:p-6 space-y-10 max-w-[1400px] mx-auto w-full">
+        <div className="p-4 md:p-6 space-y-8 max-w-[1400px] mx-auto w-full">
             {/* ---------- Hero ---------- */}
-            <div className="flex items-end justify-between flex-wrap gap-4 animate-fade-rise">
+            <header className="flex items-end justify-between flex-wrap gap-4">
                 <div>
                     <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
                         // {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
@@ -216,103 +201,164 @@ const Dashboard = () => {
                     <h1 className="text-4xl md:text-5xl font-bold tracking-tight mt-1">
                         {greeting}.
                     </h1>
-                    <p className="text-muted-foreground mt-2">
+                    <p className="text-muted-foreground mt-2 max-w-xl">
                         {summary}
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
-                    {stats.weeklyStreak.currentWeekCount > 0 && (
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
-                            <Flame className="h-3.5 w-3.5" />
-                            <span className="font-mono text-xs font-medium tabular-nums">
-                                {stats.weeklyStreak.currentWeekCount} this week
-                            </span>
-                        </div>
-                    )}
-                    <Button onClick={() => navigate('/applications/create')} className="gap-1.5">
-                        <Plus className="h-4 w-4" />
-                        New application
-                    </Button>
-                </div>
-            </div>
+                <Button onClick={() => navigate('/applications/create')} className="gap-1.5">
+                    <Plus className="h-4 w-4" />
+                    New application
+                </Button>
+            </header>
 
-            {/* ---------- Status banner ---------- */}
-            <div className="animate-fade-rise" style={{ animationDelay: '60ms' }}>
-                <StatusBanner facts={facts} />
-            </div>
-
-            {/* Email review queue removed — auto-imports now go straight to the pipeline,
-                so reviewing is just editing any "Position TBD" rows in the list/board. */}
-
-            {/* ---------- KPI strip with sparklines ---------- */}
-            <div className="grid grid-cols-2 md:grid-cols-4 border-y divide-x divide-border animate-fade-rise" style={{ animationDelay: '120ms' }}>
+            {/* ---------- KPI strip (compact, no decorative sparklines) ---------- */}
+            <div className="grid grid-cols-2 md:grid-cols-4 border-y divide-x divide-border">
+                <KpiBlock label="total" value={stats.total} />
                 <KpiBlock
-                    label="total"
-                    value={stats.total}
-                    sparkData={cumulativeTotals}
-                    sparkColor="var(--foreground)"
-                />
-                <KpiBlock
-                    label="in pipeline"
-                    value={pendingCount}
-                    valueClass="text-chart-1"
-                    sparkData={weeklyPending}
-                    sparkColor="var(--chart-1)"
+                    label="active"
+                    value={activeCount}
+                    sub={activeCount > 0 ? `${stats.statusCounts['Applied'] || 0} applied · ${stats.statusCounts['Interview'] || 0} interview` : undefined}
                 />
                 <KpiBlock
                     label="response rate"
                     value={`${stats.responseRate}%`}
-                    valueClass="text-chart-2"
+                    sub={stats.total > 0 ? `${stats.total - (stats.statusCounts['Applied'] || 0)} of ${stats.total} got a reply` : undefined}
                 />
                 <KpiBlock
                     label="offers"
                     value={offerCount}
-                    valueClass={offerCount > 0 ? 'text-emerald-500' : 'text-muted-foreground'}
-                    highlight={offerCount > 0}
+                    valueClass={offerCount > 0 ? 'text-emerald-500' : ''}
+                    sub={stats.weeklyStreak.currentWeekCount > 0 ? `${stats.weeklyStreak.currentWeekCount} new this week` : undefined}
                 />
             </div>
 
-            {/* ---------- Pipeline flow (signature visual) ---------- */}
-            <section className="animate-fade-rise" style={{ animationDelay: '180ms' }}>
-                <div className="flex items-end justify-between flex-wrap gap-2 mb-4">
+            {/* ---------- Pipeline tile grid ---------- */}
+            <section>
+                <div className="flex items-end justify-between flex-wrap gap-3 mb-6">
                     <div>
-                        <SectionLabel label="pipeline" />
-                        <div className="flex items-baseline gap-2 mt-1">
-                            <h2 className="text-2xl font-bold tracking-tight">The flow</h2>
-                            <span className="font-mono text-xs text-muted-foreground">where everything stands</span>
-                        </div>
+                        <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">
+                            Where everything stands
+                        </h2>
+                        <p className="text-base text-muted-foreground mt-1.5">
+                            A live snapshot of your pipeline.
+                        </p>
                     </div>
                     <Link
                         to="/applications"
-                        className="font-mono text-xs text-muted-foreground hover:text-foreground flex items-center gap-0.5 transition-colors"
+                        className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors"
                     >
-                        view all <ChevronRight className="h-3 w-3" />
+                        View all
+                        <ChevronRight className="h-4 w-4" />
                     </Link>
                 </div>
-                <div className="rounded-xl border bg-card p-6">
-                    {stats.total === 0 ? (
-                        <div className="text-center py-14">
-                            <Sparkles className="h-7 w-7 mx-auto text-muted-foreground/40 mb-3" />
-                            <p className="text-sm text-muted-foreground">
-                                Your pipeline shows up here.
-                            </p>
-                            <Button
-                                variant="link"
-                                size="sm"
-                                onClick={() => navigate('/applications/create')}
-                                className="mt-1"
-                            >
-                                Track your first application →
-                            </Button>
+
+                {stats.total === 0 ? (
+                    <div className="rounded-2xl border border-border/60 bg-card p-12 text-center">
+                        <Sparkles className="h-7 w-7 mx-auto text-muted-foreground/40 mb-3" />
+                        <p className="text-sm text-muted-foreground">Your pipeline shows up here.</p>
+                        <Button
+                            variant="link"
+                            size="sm"
+                            onClick={() => navigate('/applications/create')}
+                            className="mt-1"
+                        >
+                            Track your first application →
+                        </Button>
+                    </div>
+                ) : (
+                    <>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                            {pipelineStages.map((s) => {
+                                const count = stats.statusCounts[s.key] || 0;
+                                const pct = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
+                                const isActive = count > 0;
+                                const color = statusColors[s.key];
+                                return (
+                                    <Link
+                                        key={s.key}
+                                        to={`/applications?status=${s.key}`}
+                                        className={cn(
+                                            'group relative overflow-hidden rounded-2xl border bg-card p-5 md:p-6 transition-all',
+                                            isActive
+                                                ? 'border-border/60 hover:border-foreground/30 hover:shadow-sm'
+                                                : 'border-border/40 hover:border-border'
+                                        )}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <span className={cn(
+                                                'text-sm font-medium tracking-tight',
+                                                isActive ? 'text-foreground' : 'text-muted-foreground'
+                                            )}>
+                                                {s.label}
+                                            </span>
+                                            <span
+                                                className="h-2 w-2 rounded-full transition-opacity"
+                                                style={{
+                                                    backgroundColor: color,
+                                                    opacity: isActive ? 1 : 0.25,
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="mt-4 flex items-baseline gap-2">
+                                            <span className={cn(
+                                                'text-5xl font-semibold tracking-tight tabular-nums leading-none',
+                                                isActive ? 'text-foreground' : 'text-muted-foreground/40'
+                                            )}>
+                                                {count}
+                                            </span>
+                                            {isActive && (
+                                                <span className="text-sm text-muted-foreground tabular-nums">
+                                                    {pct}%
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="mt-5 h-1 rounded-full bg-muted/40 overflow-hidden">
+                                            <div
+                                                className="h-full rounded-full transition-all duration-700"
+                                                style={{
+                                                    width: `${pct}%`,
+                                                    backgroundColor: color,
+                                                    opacity: isActive ? 1 : 0,
+                                                }}
+                                            />
+                                        </div>
+                                    </Link>
+                                );
+                            })}
                         </div>
-                    ) : (
-                        <PipelineFlow
-                            stages={pipelineCounts}
-                            rejected={stats.statusCounts['Rejected'] || 0}
-                            withdrawn={stats.statusCounts['Withdrawn'] || 0}
-                        />
-                    )}
-                </div>
+
+                        {(rejectedCount > 0 || withdrawnCount > 0) && (
+                            <div className="mt-4 flex items-center gap-6 px-1 text-sm text-muted-foreground">
+                                {rejectedCount > 0 && (
+                                    <Link
+                                        to="/applications?status=Rejected"
+                                        className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors"
+                                    >
+                                        <span
+                                            className="h-1.5 w-1.5 rounded-full"
+                                            style={{ backgroundColor: statusColors.Rejected }}
+                                        />
+                                        <span className="text-foreground font-medium tabular-nums">{rejectedCount}</span>
+                                        rejected
+                                    </Link>
+                                )}
+                                {withdrawnCount > 0 && (
+                                    <Link
+                                        to="/applications?status=Withdrawn"
+                                        className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors"
+                                    >
+                                        <span
+                                            className="h-1.5 w-1.5 rounded-full"
+                                            style={{ backgroundColor: statusColors.Withdrawn }}
+                                        />
+                                        <span className="text-foreground font-medium tabular-nums">{withdrawnCount}</span>
+                                        withdrawn
+                                    </Link>
+                                )}
+                            </div>
+                        )}
+                    </>
+                )}
             </section>
 
             {/* ---------- Activity heatmap ---------- */}
@@ -596,39 +642,32 @@ const Dashboard = () => {
     )
 }
 
-// ---------- KPI block with sparkline ----------
+// ---------- KPI block ----------
 const KpiBlock = ({
     label,
     value,
     valueClass = '',
-    sparkData,
-    sparkColor = 'currentColor',
-    highlight = false,
+    sub,
 }: {
     label: string;
     value: number | string;
     valueClass?: string;
-    sparkData?: number[];
-    sparkColor?: string;
-    highlight?: boolean;
-}) => {
-    return (
-        <div className={`px-4 py-5 ${highlight ? 'bg-emerald-500/5' : ''}`}>
-            <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                {label}
+    sub?: string;
+}) => (
+    <div className="px-4 py-4">
+        <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            {label}
+        </p>
+        <p className={`font-mono text-3xl font-bold tabular-nums mt-1 ${valueClass}`}>
+            {value}
+        </p>
+        {sub && (
+            <p className="font-mono text-[10px] text-muted-foreground/70 mt-1.5 truncate">
+                {sub}
             </p>
-            <div className="flex items-end justify-between gap-2 mt-1">
-                <p className={`font-mono text-3xl font-bold tabular-nums ${valueClass}`}>
-                    {value}
-                </p>
-                {sparkData && sparkData.length > 1 && (
-                    <div style={{ color: sparkColor }}>
-                        <Sparkline data={sparkData} width={70} height={26} fill={sparkColor} />
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
+        )}
+    </div>
+);
+
 
 export default Dashboard

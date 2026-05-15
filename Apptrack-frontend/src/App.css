@@ -15,18 +15,70 @@
 
   :root {
     --dot-color: rgba(0, 0, 0, 0.06);
+    --pattern-color: rgba(0, 0, 0, 0.05);
   }
   .dark {
     --dot-color: rgba(255, 255, 255, 0.045);
+    --pattern-color: rgba(255, 255, 255, 0.04);
   }
+}
 
-  /* Subtle dot-grid texture on the main scroll viewport.
-     Uses a dedicated --dot-color variable so we don't inherit-poison child text colors. */
-  main {
-    background-image: radial-gradient(circle, var(--dot-color) 0.5px, transparent 0.5px);
-    background-size: 28px 28px;
-    background-position: 0 0;
-  }
+/* ─────────────────────────────────────────────────────────────────────────
+   APPEARANCE AXES — classes are stamped on <html> by lib/appearance.ts
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* ── Density: scales every rem-based size (Tailwind h-9, p-4, text-sm, etc.)
+   by adjusting the root font-size. Touches everything globally. */
+html.density-compact { font-size: 14px; }
+html.density-comfortable { font-size: 16px; }
+html.density-cozy { font-size: 17.5px; }
+
+/* ── Font family — overrides --font-sans which is what App.css :root applies
+   to every element via `font-family: var(--font-sans)`. */
+html.font-sans { --font-sans: Outfit, ui-sans-serif, system-ui, sans-serif; }
+html.font-mono { --font-sans: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, monospace; }
+html.font-serif { --font-sans: Merriweather, 'Newsreader', Georgia, ui-serif, serif; }
+
+/* ── Border radius — drives every rounded-* utility via Tailwind's theme. */
+html.radius-sharp { --radius: 0px; }
+html.radius-default { --radius: 0.5rem; }
+html.radius-soft { --radius: 0.875rem; }
+html.radius-pill { --radius: 1.5rem; }
+
+/* ── Background patterns — applied to <main> in the dashboard layout. */
+html.bg-none main { background-image: none; }
+html.bg-dots main {
+  background-image: radial-gradient(circle, var(--dot-color) 0.5px, transparent 0.5px);
+  background-size: 28px 28px;
+  background-position: 0 0;
+}
+html.bg-grid main {
+  background-image:
+    linear-gradient(var(--pattern-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--pattern-color) 1px, transparent 1px);
+  background-size: 36px 36px;
+  background-position: -1px -1px;
+}
+html.bg-lines main {
+  background-image: linear-gradient(var(--pattern-color) 1px, transparent 1px);
+  background-size: 100% 6px;
+}
+html.bg-noise main {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.05 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  background-size: 180px 180px;
+}
+html.dark.bg-noise main {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.04 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+/* ── Reduced motion — kills transitions and animations app-wide. */
+html.motion-reduced *,
+html.motion-reduced *::before,
+html.motion-reduced *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }
 
 @layer utilities {
@@ -506,48 +558,80 @@
   --shadow-2xl: var(--shadow-2xl);
 }
 
-/* Color Themes from tweakcn */
+/* Color Themes — each one re-paints --primary, --ring, --sidebar-primary,
+   --accent (light tint) and the chart anchors so the change is felt across
+   buttons, focus rings, sidebar selection bars, chip selections, and charts. */
 .theme-rose {
   --primary: oklch(0.6455 0.2123 12.5913);
   --primary-foreground: oklch(1.0000 0 0);
-  --secondary: oklch(0.5693 0.1458 4.6328);
-  --secondary-foreground: oklch(1.0000 0 0);
+  --ring: oklch(0.6455 0.2123 12.5913);
+  --sidebar-primary: oklch(0.6455 0.2123 12.5913);
+  --accent: oklch(0.9450 0.0405 12.5913);
+  --accent-foreground: oklch(0.4 0.16 12.5913);
   --chart-1: oklch(0.6455 0.2123 12.5913);
   --chart-2: oklch(0.5693 0.1458 4.6328);
+}
+.dark.theme-rose {
+  --accent: oklch(0.3380 0.0589 12.5913);
+  --accent-foreground: oklch(0.8823 0.0571 12.5913);
 }
 
 .theme-blue {
   --primary: oklch(0.6232 0.1665 253.1006);
   --primary-foreground: oklch(1.0000 0 0);
-  --secondary: oklch(0.5445 0.1925 262.8812);
-  --secondary-foreground: oklch(1.0000 0 0);
+  --ring: oklch(0.6232 0.1665 253.1006);
+  --sidebar-primary: oklch(0.6232 0.1665 253.1006);
+  --accent: oklch(0.9300 0.0350 253.1006);
+  --accent-foreground: oklch(0.4 0.14 253.1006);
   --chart-1: oklch(0.6232 0.1665 253.1006);
   --chart-2: oklch(0.5445 0.1925 262.8812);
+}
+.dark.theme-blue {
+  --accent: oklch(0.3380 0.0589 253.1006);
+  --accent-foreground: oklch(0.8823 0.0571 253.1006);
 }
 
 .theme-green {
   --primary: oklch(0.6237 0.1697 145.4743);
   --primary-foreground: oklch(1.0000 0 0);
-  --secondary: oklch(0.5188 0.1334 154.0291);
-  --secondary-foreground: oklch(1.0000 0 0);
+  --ring: oklch(0.6237 0.1697 145.4743);
+  --sidebar-primary: oklch(0.6237 0.1697 145.4743);
+  --accent: oklch(0.9300 0.0400 145.4743);
+  --accent-foreground: oklch(0.4 0.14 145.4743);
   --chart-1: oklch(0.6237 0.1697 145.4743);
   --chart-2: oklch(0.5188 0.1334 154.0291);
+}
+.dark.theme-green {
+  --accent: oklch(0.3380 0.0589 145.4743);
+  --accent-foreground: oklch(0.8823 0.0571 145.4743);
 }
 
 .theme-violet {
   --primary: oklch(0.6058 0.2315 292.7551);
   --primary-foreground: oklch(1.0000 0 0);
-  --secondary: oklch(0.5309 0.2231 296.8247);
-  --secondary-foreground: oklch(1.0000 0 0);
+  --ring: oklch(0.6058 0.2315 292.7551);
+  --sidebar-primary: oklch(0.6058 0.2315 292.7551);
+  --accent: oklch(0.9300 0.0400 292.7551);
+  --accent-foreground: oklch(0.4 0.18 292.7551);
   --chart-1: oklch(0.6058 0.2315 292.7551);
   --chart-2: oklch(0.5309 0.2231 296.8247);
+}
+.dark.theme-violet {
+  --accent: oklch(0.3380 0.0700 292.7551);
+  --accent-foreground: oklch(0.8823 0.0571 292.7551);
 }
 
 .theme-orange {
   --primary: oklch(0.7050 0.1912 47.6042);
   --primary-foreground: oklch(1.0000 0 0);
-  --secondary: oklch(0.6469 0.1998 38.4042);
-  --secondary-foreground: oklch(1.0000 0 0);
+  --ring: oklch(0.7050 0.1912 47.6042);
+  --sidebar-primary: oklch(0.7050 0.1912 47.6042);
+  --accent: oklch(0.9450 0.0405 47.6042);
+  --accent-foreground: oklch(0.4 0.15 47.6042);
   --chart-1: oklch(0.7050 0.1912 47.6042);
   --chart-2: oklch(0.6469 0.1998 38.4042);
+}
+.dark.theme-orange {
+  --accent: oklch(0.3380 0.0589 47.6042);
+  --accent-foreground: oklch(0.8823 0.0571 47.6042);
 }

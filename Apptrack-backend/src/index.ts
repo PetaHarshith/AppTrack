@@ -2,12 +2,12 @@ import express, { Request, Response, NextFunction } from 'express';
 import { toNodeHandler, fromNodeHeaders } from 'better-auth/node';
 import cors from 'cors';
 import { eq } from 'drizzle-orm';
-import applicationsRouter from './routes/applications';
-import usersRouter from './routes/users';
-import { auth } from './lib/auth';
-import { db } from './db';
-import { user as authUserTable } from './db/schema/auth';
-import { users } from './db/schema/app';
+import applicationsRouter from './routes/applications.js';
+import usersRouter from './routes/users.js';
+import { auth } from './lib/auth.js';
+import { db } from './db/index.js';
+import { user as authUserTable } from './db/schema/auth.js';
+import { users } from './db/schema/app.js';
 
 const isProd = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
 

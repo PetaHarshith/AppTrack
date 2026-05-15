@@ -1,10 +1,10 @@
 import express from "express";
 import { and, desc, asc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
-import { applications, users } from "../db/schema";
-import { db } from "../db";
+import { applications, users } from "../db/schema/index.js";
+import { db } from "../db/index.js";
 import { z } from "zod";
-import { importJobFromUrl } from "../lib/importUrl";
-import { statsCache, STATS_CACHE_TTL_MS, invalidateStatsCache } from "../lib/statsCache";
+import { importJobFromUrl } from "../lib/importUrl.js";
+import { statsCache, STATS_CACHE_TTL_MS, invalidateStatsCache } from "../lib/statsCache.js";
 
 const router = express.Router();
 

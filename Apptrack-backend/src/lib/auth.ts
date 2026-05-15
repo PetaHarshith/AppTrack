@@ -1,8 +1,8 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { username } from "better-auth/plugins";
-import { db } from "../db";
-import * as schema from "../db/schema";
+import { db } from "../db/index.js";
+import * as schema from "../db/schema/index.js";
 
 const isProd = process.env.NODE_ENV === "production" || !!process.env.VERCEL;
 

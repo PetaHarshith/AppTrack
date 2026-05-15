@@ -1,8 +1,10 @@
 import { createAuthClient } from "better-auth/react";
 import { usernameClient } from "better-auth/client/plugins";
+import { BACKEND_URL } from "@/constants";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
-
+// In production VITE_BACKEND_URL is unset, so BACKEND_URL falls back to window.location.origin
+// (see constants/index.ts). Better-auth appends its own /api/auth/... path to baseURL,
+// so we pass just the origin here.
 export const authClient = createAuthClient({
     baseURL: BACKEND_URL,
     plugins: [
@@ -10,11 +12,9 @@ export const authClient = createAuthClient({
     ],
 });
 
-// Export hooks and methods for easier usage
 export const {
     signIn,
     signUp,
     signOut,
     useSession,
 } = authClient;
-

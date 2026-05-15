@@ -1,168 +1,114 @@
 # AppTrack
 
-A job application tracker built for students chasing their first big offer — a drag-and-drop pipeline, a Chrome extension that auto-detects when you've applied somewhere, and the dashboard analytics you actually need to land the role.
+**A full-stack job application tracker with a Chrome extension that auto-detects when you've applied to a job — turning "I just hit submit" into "this is tracked" with zero clicks.**
 
-🌐 **Live**: [apptrack.harshithpeta.com](https://apptrack.harshithpeta.com)
-
-## What's inside
-
-| Feature | Notes |
-|---|---|
-| **Pipeline tracking** | 6-stage status flow (Applied → OA → Interview → Offer / Rejected / Withdrawn). Drag-drop kanban + sortable table view. |
-| **Dashboard** | Conversion funnel visual, daily activity heatmap (12 weeks), action queue (deadlines + follow-ups), weekly cadence chart, response-time leaderboard. |
-| **Chrome extension** | One-click save from any job page. Auto-detects "Thank you for applying" pages on LinkedIn, Workday, Greenhouse, Lever, Ashby, and pops up a "Add to AppTrack" widget right in the page. |
-| **Smart job URL import** | Paste a Greenhouse / Lever / Ashby URL → server scrapes company/position/location with cheerio + JSON-LD fallback. |
-| **Calendar** | Month grid of interview dates + OA deadlines. |
-| **Cmd-K command palette** | Jump to any view, switch filters, toggle theme. |
-| **Auto-imports** | Pasted-URL imports and extension saves are tagged `source='email|url_import|manual'` for transparency. |
-
-## Tech
-
-| Layer | Stack |
-|---|---|
-| Frontend | React 19 + TypeScript + Vite + Refine + shadcn/ui + Tailwind + Recharts + @dnd-kit + GSAP |
-| Backend  | Node.js + Express 5 + TypeScript + Drizzle ORM + Zod + Better-Auth |
-| Database | PostgreSQL |
-| Extension | Manifest V3 Chrome extension, vanilla JS + Shadow DOM widget |
-| Hosting | Vercel (frontend + backend as serverless), Neon (Postgres) |
-
-## Install the Chrome extension (for users)
-
-The extension auto-detects when you submit an application on LinkedIn, Workday, Greenhouse, Lever, Ashby, and other job sites — and offers to track it with one click.
-
-1. Download the extension folder: go to [github.com/PetaHarshith/AppTrack](https://github.com/PetaHarshith/AppTrack), navigate into `apptrack-extension/`, and click **Code → Download ZIP** at the repo root. (Or if you're a dev: `gh repo clone PetaHarshith/AppTrack`.)
-2. Unzip it somewhere permanent — `~/Documents`, not `~/Downloads`. If you delete the folder, the extension breaks.
-3. Open **`chrome://extensions`** in Chrome.
-4. Toggle **Developer mode** on (top right).
-5. Click **Load unpacked** → select the `apptrack-extension` folder.
-6. Pin the AppTrack icon to your toolbar (puzzle-piece menu → click the pin next to AppTrack).
-7. Sign in at **[apptrack.harshithpeta.com](https://apptrack.harshithpeta.com)** in the same Chrome window.
-8. Done. Apply to any job on LinkedIn / Workday / Greenhouse / Lever — the widget will pop up in the corner asking to track it.
-
-Works on any Chromium-based browser (Chrome, Edge, Brave, Arc).
+**Live:** [apptrack.harshithpeta.com](https://apptrack.harshithpeta.com) &nbsp;·&nbsp; **Stack:** React 19 · TypeScript · Express 5 · PostgreSQL · MV3 Chrome Extension &nbsp;·&nbsp; **Deployed on:** Vercel + Neon
 
 ---
 
-## Repo layout
+## The problem
+
+Modern job hunting means juggling 50–200 applications across LinkedIn, Workday, Greenhouse, Lever, Ashby, and a dozen company ATSes. Spreadsheets rot. Email folders sprawl. By week three, you've lost track of which OAs are due, which recruiters ghosted you, and what your actual interview conversion rate is.
+
+AppTrack collapses the whole pipeline into one product — and the Chrome extension means you never have to remember to log anything.
+
+## What makes it interesting
+
+### Chrome extension with passive auto-detection
+The extension runs a content script on every job platform and watches for "Thank you for applying" confirmation pages on LinkedIn, Workday, Greenhouse, Lever, and Ashby. When one fires, it injects a Shadow-DOM widget that lets the user save the application with a single click — no popup, no copy-paste. The widget is style-isolated from the host page (some ATSes ship 2MB of CSS) and authenticates against the backend through the service worker using the user's existing session cookie.
+
+### Server-side job posting scraper
+Paste any Greenhouse / Lever / Ashby URL and the backend scrapes company, role, and location server-side using `cheerio` with a JSON-LD `JobPosting` schema fallback. Saves the user from typing the same five fields they just read.
+
+### Analytics that surface what matters today
+The dashboard isn't a vanity-metrics wall. It computes a conversion funnel, a 12-week activity heatmap, an action queue (deadlines and follow-ups due in the next 7 days), a weekly cadence chart, and a response-time leaderboard ranking companies by recruiter speed. Built with Recharts on top of aggregated SQL views, cached in memory per-user to survive serverless cold-starts cheaply.
+
+### Built for the way people actually work
+- Drag-and-drop kanban (`@dnd-kit`) *and* a sortable table — same data, two mental models.
+- `Cmd-K` command palette for navigation and filtering.
+- Calendar view of interview dates + OA deadlines on a month grid.
+- Every imported row tagged `source = 'manual' | 'url_import' | 'extension'` so the user always knows where data came from.
+
+## Architecture
 
 ```
-AppTrack/
-├── api/                       # Vercel serverless entry — re-exports the Express app
-├── Apptrack-backend/          # Express app source (routes, db, lib)
-│   └── src/
-├── Apptrack-frontend/         # Vite + React app
-│   └── src/
-├── apptrack-extension/        # MV3 Chrome extension
-│   ├── popup.{html,css,js}    # toolbar popup (manual save)
-│   ├── auto-detect.js         # confirmation-page auto-prompt widget
-│   ├── content-script.js      # on-demand parser for popup
-│   ├── background.js          # service worker for authenticated POSTs
-│   └── icons/                 # 16/48/128 px generated PNGs
-├── package.json               # Root: backend deps + workspace scripts
-├── vercel.json                # Vercel build + rewrites
-└── docker-compose.yml         # Local Postgres + pgAdmin
+                       ┌──────────────────────────┐
+                       │   Chrome Extension MV3   │
+                       │   (content script +      │
+                       │    Shadow-DOM widget +   │
+                       │    service worker)       │
+                       └────────────┬─────────────┘
+                                    │  fetch w/ session cookie
+                                    ▼
+┌─────────────────────┐    ┌──────────────────────┐    ┌────────────┐
+│  React 19 + Refine  │───▶│  Express 5 (serverless on │──▶│  Neon       │
+│  Vite · shadcn/ui   │    │  Vercel) · Better-Auth ·  │   │  Postgres   │
+│  Recharts · dnd-kit │    │  Drizzle ORM · Zod · cheerio │ │  + Drizzle  │
+└─────────────────────┘    └──────────────────────┘    └────────────┘
 ```
+
+## Tech stack
+
+| Layer | Tools |
+|---|---|
+| **Frontend** | React 19, TypeScript, Vite, Refine, shadcn/ui, Tailwind, Recharts, @dnd-kit, GSAP |
+| **Backend** | Node.js, Express 5, TypeScript, Drizzle ORM, Zod, Better-Auth |
+| **Database** | PostgreSQL (Neon) |
+| **Extension** | Manifest V3, vanilla JS, Shadow DOM for style isolation |
+| **Infra** | Vercel serverless functions, Neon Postgres, custom domain on Cloudflare DNS |
+
+## Engineering notes worth calling out
+
+- **Auth that spans three origins.** Web app, Chrome extension, and serverless API each have different cookie semantics. Resolved with `SameSite=None; Secure` cookies plus a CORS allowlist that includes the `chrome-extension://` origin.
+- **Serverless-aware DB pool.** Drizzle's `postgres-js` driver is configured with `max: 1` so each cold function doesn't open a fresh pool against Neon — important on the free tier, important everywhere.
+- **In-memory stats cache** keyed by user with TTL — cheap on warm Vercel invocations, no-op on cold ones, never wrong.
+- **Drizzle schema-first migrations** (`npm run db:push`) keep prod and local in sync without managing migration files manually.
+- **No `localhost` leaks.** Every URL in the frontend and extension is resolved through a `BACKEND_URL` helper that falls back to `window.location.origin` in prod.
 
 ---
 
-## Local development
+## Try it locally
 
-### Prereqs
-- Node 20+, npm 10+
-- Docker (for local Postgres)
-
-### Setup
 ```bash
 git clone https://github.com/PetaHarshith/AppTrack.git
 cd AppTrack
 
-# 1. Backend deps (root) + frontend deps
 npm install
 npm --prefix Apptrack-frontend install
 
-# 2. Local Postgres
 cp Apptrack-backend/.env.example Apptrack-backend/.env
 cp Apptrack-frontend/.env.example Apptrack-frontend/.env
 docker compose -f Apptrack-backend/docker-compose.yml up -d
-
-# 3. Apply schema
 npm run db:push
 
-# 4. Run both servers (in two terminals)
 npm run dev:backend     # → http://localhost:8000
 npm run dev:frontend    # → http://localhost:5173
 ```
 
 Sign up at `localhost:5173/signup` and you're in.
 
-### Chrome extension (dev)
-1. `chrome://extensions` → toggle Developer Mode → **Load unpacked** → pick `apptrack-extension/`
-2. Open the extension's service-worker DevTools and point it at your local backend:
+### Loading the Chrome extension
+1. `chrome://extensions` → **Developer Mode** on → **Load unpacked** → pick `apptrack-extension/`
+2. In the extension's service-worker DevTools:
    ```js
    chrome.storage.sync.set({
      backendUrl: 'http://localhost:8000',
      frontendUrl: 'http://localhost:5173',
    })
    ```
-3. The extension is now wired up to your local stack.
+
+## Repo layout
+
+```
+AppTrack/
+├── api/                      # Vercel serverless entry → re-exports Express app
+├── Apptrack-backend/src/     # Express routes, Drizzle schema, scraper, auth
+├── Apptrack-frontend/src/    # React app: pages, dataviz, command palette
+├── apptrack-extension/       # MV3 extension: content script, auto-detect, popup
+├── vercel.json               # Build + rewrites for serverless deploy
+└── docker-compose.yml        # Local Postgres + pgAdmin
+```
 
 ---
 
-## Production deployment (Vercel + Neon)
-
-### 1. Provision the database (Neon — 5 min)
-1. Sign up at [neon.tech](https://neon.tech) (free tier)
-2. Create a new project → call it `apptrack`
-3. Copy the **connection string** from the dashboard. It looks like:
-   `postgres://user:pass@ep-foo-bar.region.aws.neon.tech/apptrack?sslmode=require`
-4. Apply the schema from your local machine:
-   ```bash
-   DATABASE_URL='paste-neon-connection-string' npm run db:push
-   ```
-
-### 2. Deploy on Vercel (10 min)
-1. Push the repo to GitHub if you haven't.
-2. [Vercel dashboard](https://vercel.com/new) → **Import Git Repository** → pick `AppTrack`
-3. **Framework Preset**: leave it on "Other" — `vercel.json` handles everything
-4. **Environment Variables** — add these:
-   | Name | Value |
-   |---|---|
-   | `DATABASE_URL` | (the Neon connection string from step 1) |
-   | `BETTER_AUTH_SECRET` | run `openssl rand -hex 32` and paste the output |
-   | `BETTER_AUTH_URL` | `https://apptrack.harshithpeta.com` |
-   | `FRONTEND_URL` | `https://apptrack.harshithpeta.com` |
-5. **Deploy**. First build takes ~2 minutes.
-
-### 3. Custom domain (5 min)
-1. In the Vercel project → **Settings → Domains** → add `apptrack.harshithpeta.com`
-2. Vercel shows you a CNAME record to add. Copy it.
-3. In your DNS provider (Cloudflare, Namecheap, etc.) add the CNAME:
-   ```
-   Type:  CNAME
-   Name:  apptrack
-   Value: cname.vercel-dns.com
-   ```
-4. Wait ~1 minute for propagation. Vercel will auto-issue an SSL cert.
-
-### 4. Future deploys
-Every push to `main` auto-deploys. Schema changes need `npm run db:push` against the prod `DATABASE_URL` separately (Neon doesn't auto-migrate).
-
----
-
-## Production checklist
-
-- [x] No hardcoded `localhost` URLs anywhere
-- [x] Strong `BETTER_AUTH_SECRET` (not the dev placeholder)
-- [x] CORS allowlists production frontend + chrome-extension origins only
-- [x] Cookies set with `SameSite=None; Secure` (works because Vercel is HTTPS)
-- [x] DB connection pool sized for serverless (`max: 1` on Vercel)
-- [x] In-memory stats cache still present (no-op-friendly on cold functions, useful on warm ones)
-- [x] `.env` files in `.gitignore`; `.env.example` documents every variable
-
----
-
-## Project motivation
-
-Job searching means tracking 50+ applications across spreadsheets, emails, and a dozen ATSes. AppTrack centralizes the pipeline, surfaces what actually needs attention today, and ships with a Chrome extension that turns "I just hit submit" into "this is tracked" with one click.
-
-Built by [Harshith Peta](https://harshithpeta.com) — CS, University of Wisconsin–Madison.
+Built by **[Harshith Peta](https://harshithpeta.com)** — Computer Science, University of Wisconsin–Madison.

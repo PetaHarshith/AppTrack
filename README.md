@@ -31,20 +31,16 @@ The dashboard isn't a vanity-metrics wall. It computes a conversion funnel, a 12
 
 ## Architecture
 
-```
-                       ┌──────────────────────────┐
-                       │   Chrome Extension MV3   │
-                       │   (content script +      │
-                       │    Shadow-DOM widget +   │
-                       │    service worker)       │
-                       └────────────┬─────────────┘
-                                    │  fetch w/ session cookie
-                                    ▼
-┌─────────────────────┐    ┌──────────────────────┐    ┌────────────┐
-│  React 19 + Refine  │───▶│  Express 5 (serverless on │──▶│  Neon       │
-│  Vite · shadcn/ui   │    │  Vercel) · Better-Auth ·  │   │  Postgres   │
-│  Recharts · dnd-kit │    │  Drizzle ORM · Zod · cheerio │ │  + Drizzle  │
-└─────────────────────┘    └──────────────────────┘    └────────────┘
+```mermaid
+flowchart TB
+    ext["<b>Chrome Extension (MV3)</b><br/>content script · Shadow-DOM widget · service worker"]
+    fe["<b>Frontend</b><br/>React 19 · Refine · Vite<br/>shadcn/ui · Recharts · dnd-kit"]
+    be["<b>Backend</b><br/>Express 5 on Vercel (serverless)<br/>Better-Auth · Drizzle ORM · Zod · cheerio"]
+    db[("<b>Neon Postgres</b><br/>+ Drizzle migrations")]
+
+    ext -- "fetch w/ session cookie" --> be
+    fe --> be
+    be --> db
 ```
 
 ## Tech stack
